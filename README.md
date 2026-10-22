@@ -43,10 +43,10 @@ DevField는 개발자가 기술을 이해하고, 선택의 근거를 설명하�
 
 | 문서 | 설명 | 상태 |
 |---|---|---|
-| [RepoQ MVP PRD v1.0](docs/products/repoq/PRD.md) | RepoQ의 승인된 MVP 기능 범위, 사용자 흐름 및 검증 기준 | **요구사항 기준선 승인** |
-| Platform Architecture | 상위 아키텍처와 서비스 책임 | 설계 예정 |
-| Service Contracts | 서비스 간 API 및 데이터 계약 | 설계 예정 |
-| Architecture Decision Records | 주요 기술 선택과 그 근거 | 작성 예정 |
+| [RepoQ MVP PRD v1.1 개정 초안](docs/products/repoq/PRD.md) | 승인된 v1.0 기준선에 이메일 가입·회원 탈퇴 연동을 반영한 제품 요구사항 | **개정 초안 · 구현 전** |
+| [RepoQ 서비스 경계 설계서](docs/architecture/repoq-service-boundaries.md) | Project/Interview 책임과 데이터 소유권 | **상위 설계 승인** |
+| [ADR-001](docs/adr/0001-repoq-service-decomposition.md) | RepoQ 서비스 분리 결정 | **Accepted** |
+| [RepoQ 통합 API 명세서 v0.2](docs/contracts/repoq/api-spec.md) | 사용자용·서비스 간 계약 및 회원 탈퇴 연동 | **통합 검토 초안** |
 
 현재 저장소에 존재하는 문서 구조는 다음과 같습니다.
 
@@ -54,9 +54,16 @@ DevField는 개발자가 기술을 이해하고, 선택의 근거를 설명하�
 DevField-Platform/
 ├── README.md
 └── docs/
-    └── products/
+    ├── products/
+    │   └── repoq/
+    │       └── PRD.md
+    ├── architecture/
+    │   └── repoq-service-boundaries.md
+    ├── adr/
+    │   └── 0001-repoq-service-decomposition.md
+    └── contracts/
         └── repoq/
-            └── PRD.md
+            └── api-spec.md
 ```
 
 추가 디렉터리는 실제 설계와 문서가 필요해지는 시점에 구성합니다.
@@ -71,7 +78,7 @@ DevField는 **MSA(Microservices Architecture)**와 **Multi-Repository** 운영�
 4. **Pragmatic Complexity** — 초기 MVP에 불필요한 인프라나 마이크로서비스를 도입하지 않습니다.
 5. **Traceability & Quality** — 요구사항, 설계 결정, 테스트 및 변경 이유를 추적할 수 있도록 관리합니다.
 
-제품별 저장소 안에 여러 독립 서비스가 공존할 수 있습니다. **RepoQ 내부의 실제 마이크로서비스 분리와 기술 스택은 아직 설계 단계**이며, 이 README는 특정 서비스 수나 인프라 제품을 확정하지 않습니다.
+제품별 저장소 안에 여러 독립 서비스가 공존할 수 있습니다. RepoQ의 **Project Service와 Interview Service 분리**는 ADR-001에서 승인했습니다. 인증 제품·기술 스택 및 인프라 제품은 아직 확정하지 않았습니다.
 
 ## Planned Repository Organization
 
@@ -88,9 +95,9 @@ GitHub Organization: [thedevfield](https://github.com/thedevfield)
 
 ## Current Status & Next Steps
 
-**현재 상태: RepoQ MVP PRD v1.0 승인, 상세 아키텍처·구현·배포 진행 전.**
+**현재 상태: RepoQ MVP PRD v1.0 승인 기준선을 바탕으로 v1.1 개정 초안을 작성했고, 서비스 경계·ADR-001은 승인됐습니다. 통합 API v0.2는 검토 초안이며 구현·배포 전입니다.**
 
-다음 단계에서는 RepoQ의 서비스 경계와 데이터 소유권을 검토하고, API 계약 및 기술 스택을 설계한 후 필요한 애플리케이션 저장소와 통합 개발 환경을 구성합니다. RepoQ 웹은 **Vercel Production 배포 및 실제 E2E 검증**을 MVP 완료 조건으로 계획하고 있습니다.
+다음 단계에서는 통합 API의 세부 필드·인증 연동을 검토하고 기술 스택을 설계한 후 필요한 애플리케이션 저장소와 통합 개발 환경을 구성합니다. RepoQ 웹은 **Vercel Production 배포 및 실제 E2E 검증**을 MVP 완료 조건으로 계획하고 있습니다.
 
 > 이 저장소는 현재 문서 중심의 플랫폼 저장소이며, 별도의 실행 가능한 애플리케이션이나 배포 결과를 포함한다고 주장하지 않습니다.
 
