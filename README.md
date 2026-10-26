@@ -43,11 +43,13 @@ DevField는 개발자가 기술을 이해하고, 선택의 근거를 설명하�
 
 | 문서 | 설명 | 상태 |
 |---|---|---|
-| [RepoQ MVP PRD v1.1 개정 초안 + ADR-002 인증 개정안](docs/products/repoq/PRD.md) | 기존 요구사항과 승인된 인증 아키텍처 반영 | **로컬 개정안 · 구현 전** |
-| [RepoQ 서비스 경계 설계서](docs/architecture/repoq-service-boundaries.md) | Auth/Project/Interview 책임과 데이터 소유권 | **상위 설계 승인 · 인증 로컬 개정안** |
+| [RepoQ MVP PRD v1.1 개정 초안 + ADR-002 인증 개정안](docs/products/repoq/PRD.md) | 기존 요구사항과 승인된 인증 아키텍처 반영 | **GitHub 게시 · 구현 전** |
+| [RepoQ 서비스 경계 설계서](docs/architecture/repoq-service-boundaries.md) | Auth/Project/Interview 책임과 데이터 소유권 | **상위 설계 승인 · GitHub 게시** |
 | [ADR-001](docs/adr/0001-repoq-service-decomposition.md) | RepoQ 서비스 분리 결정 | **Accepted** |
-| [ADR-002](docs/adr/0002-devfield-common-authentication.md) | DevField 공통 인증을 독립 Auth Service로 구성하는 결정 | **Accepted · 로컬 개정안** |
-| [RepoQ 통합 API 명세서 v0.2 + ADR-002 인증 개정안](docs/contracts/repoq/api-spec.md) | 기존 21개 계약과 Auth 소유·인증 경계 | **통합 검토 초안 · 로컬 개정안** |
+| [ADR-002](docs/adr/0002-devfield-common-authentication.md) | DevField 공통 인증을 독립 Auth Service로 구성하는 결정 | **Accepted · GitHub 게시** |
+| [RepoQ 통합 API 명세서 v0.2 + ADR-002 인증 개정안](docs/contracts/repoq/api-spec.md) | 기존 21개 계약과 Auth 소유·인증 경계 | **통합 검토 초안 · GitHub 게시** |
+| [DevField 공통 Auth API 계약서 v0.1](docs/contracts/auth/api-spec.md) | 이메일·소셜·BFF·JWT·내부 인증 상세 계약 | **로컬 작성 초안 · GitHub Push 전** |
+| [DevField Auth 데이터 모델 및 ERD v0.1](docs/architecture/auth/data-model.md) | 공통 계정·세션·탈퇴 데이터 소유권과 제약 | **로컬 작성 초안 · GitHub Push 전** |
 
 현재 저장소에 존재하는 문서 구조는 다음과 같습니다.
 
@@ -59,12 +61,16 @@ DevField-Platform/
     │   └── repoq/
     │       └── PRD.md
     ├── architecture/
-    │   └── repoq-service-boundaries.md
+    │   ├── repoq-service-boundaries.md
+    │   └── auth/
+    │       └── data-model.md
     ├── adr/
     │   ├── 0001-repoq-service-decomposition.md
     │   └── 0002-devfield-common-authentication.md
     └── contracts/
-        └── repoq/
+        ├── repoq/
+        │   └── api-spec.md
+        └── auth/
             └── api-spec.md
 ```
 
@@ -98,7 +104,7 @@ GitHub Organization: [thedevfield](https://github.com/thedevfield)
 
 ## Current Status & Next Steps
 
-**현재 상태: RepoQ MVP PRD v1.0 승인 기준선을 바탕으로 v1.1 개정 초안을 작성했고, 서비스 경계·ADR-001 및 ADR-002는 승인됐습니다. 이 ADR-002 인증 개정안은 로컬 문서 작업이며 아직 GitHub에 반영되지 않았습니다. 통합 API v0.2는 검토 초안입니다. ADR-002의 Auth PoC 성과는 이전 보고 기준이며 이번 작업에서 원시 로그를 재검증하거나 테스트를 재실행하지 않았습니다. Auth·RepoQ 정식 서비스 구현과 Production 검증은 완료되지 않았습니다.**
+**현재 상태: RepoQ MVP PRD v1.0 승인 기준선을 바탕으로 v1.1 개정 초안을 작성했고, 서비스 경계·ADR-001 및 ADR-002는 승인되어 기준 Commit `ad4b505d25b609a681b2726d590881c7cfb7affb`에 게시됐습니다. 통합 API v0.2는 검토 초안입니다. Auth API·ERD v0.1은 이번에 로컬에서 작성한 초안이며 GitHub Push 전입니다. ADR-002의 Auth PoC 성과는 이전 보고 기준이며 이번 문서 작업에서 테스트를 재실행하지 않았습니다. Auth·RepoQ 정식 서비스 구현과 Production 검증은 완료되지 않았습니다.**
 
 다음 단계에서는 인증 상세 Endpoint, 토큰·세션·키 운영, 서비스 간 인증, 브라우저 호출 경계와 통합 API 세부 필드를 설계한 뒤 필요한 애플리케이션 저장소와 통합 개발 환경을 구성합니다. RepoQ 웹은 **Vercel Production 배포 및 실제 E2E 검증**을 MVP 완료 조건으로 계획하고 있습니다.
 

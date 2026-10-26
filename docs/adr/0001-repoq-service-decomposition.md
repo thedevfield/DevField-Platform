@@ -5,7 +5,7 @@
 > 결정일: `2026-10-17`  
 > 상태: **Accepted — 상위 서비스 경계 결정**  
 > 버전: `원결정 + ADR-002 인증 개정안`  
-> 게시 상태: **후속 인증 주석은 로컬 변경이며 아직 GitHub에 반영되지 않음**  
+> 게시 상태: **후속 인증 주석은 기준 Commit `ad4b505d25b609a681b2726d590881c7cfb7affb`에 GitHub 게시됨**  
 > 제품: `RepoQ`  
 > 관련 문서: [RepoQ MVP PRD](../products/repoq/PRD.md) · [RepoQ 서비스 경계 설계서](../architecture/repoq-service-boundaries.md) · [ADR-002: DevField 공통 인증](0002-devfield-common-authentication.md)
 
@@ -155,4 +155,4 @@ RepoQ MVP는 사용자의 **실제 GitHub 프로젝트**에서 근거를 추출�
 
 **결정 상태:** RepoQ를 Project Service와 Interview Service로 분리한다는 상위 결정은 **Accepted**이다. 이 문서의 향후 구현 체크리스트·제품/버전·호스팅은 아직 완료 또는 확정되지 않았다.
 
-**후속 결정:** [ADR-002](0002-devfield-common-authentication.md)도 **Accepted**이며, 최초에 보류했던 DevField 공통 인증 서비스·기술·JWT 사용자 인증 경계를 보완한다. 위 대안 비교의 Auth 포함 다수 서비스 미채택은 당시 **RepoQ 초기 분리 범위**에 대한 판단이다. Project/Interview 두 서비스의 책임·소유권과 이 ADR의 Accepted 상태는 유지한다. 이 후속 주석은 아직 GitHub에 반영되지 않았다.
+**후속 결정:** [ADR-002](0002-devfield-common-authentication.md)도 **Accepted**이며, 최초에 보류했던 DevField 공통 인증 서비스·기술·JWT 사용자 인증 경계를 보완한다. 위 대안 비교의 Auth 포함 다수 서비스 미채택은 당시 **RepoQ 초기 분리 범위**에 대한 판단이다. Project/Interview 두 서비스의 책임·소유권과 이 ADR의 Accepted 상태는 유지한다. 이 후속 주석은 기준 Commit에 GitHub 게시됐다.

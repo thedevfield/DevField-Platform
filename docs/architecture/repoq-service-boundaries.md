@@ -4,7 +4,7 @@
 > 문서 ID: `DF-ARCH-RQ-001`  
 > 버전: `v1.0 + ADR-002 인증 개정안` (상위 논리 아키텍처 기준선 유지)  
 > 작성일: `2026-10-17`  
-> 상태: **상위 서비스 경계 승인 / ADR-002 인증 로컬 개정안은 아직 GitHub 미반영 / Production 상세 계약 설계 전**  
+> 상태: **상위 서비스 경계 승인 / ADR-002 인증 개정안 GitHub 게시 / Production 상세 계약 설계 전**  
 > 관련 문서: [RepoQ MVP PRD](../products/repoq/PRD.md) · [ADR-001: RepoQ 서비스 분리](../adr/0001-repoq-service-decomposition.md) · [ADR-002: 공통 인증](../adr/0002-devfield-common-authentication.md)
 
 ## 1. 목적과 적용 범위
@@ -315,4 +315,4 @@ RepoQ/
 
 ---
 
-**문서 관리 원칙:** 상위 서비스 경계는 승인된 결정으로 유지한다. 인증 서비스·기술·사용자 JWT 검증 경계는 [ADR-002](../adr/0002-devfield-common-authentication.md)에 따른다. API URL·DB 필드·Production 인증/호스팅 상세 선택은 후속 ADR·계약 문서에서 확정한다. 변경이 필요한 경우 결정 이유와 영향을 기록하고 기존 PRD와의 정합성을 검토한다. 이 ADR-002 인증 개정안은 아직 GitHub에 반영되지 않았다.
+**문서 관리 원칙:** 상위 서비스 경계는 승인된 결정으로 유지한다. 인증 서비스·기술·사용자 JWT 검증 경계는 [ADR-002](../adr/0002-devfield-common-authentication.md)에 따른다. API URL·DB 필드·Production 인증/호스팅 상세 선택은 후속 ADR·계약 문서에서 확정한다. 변경이 필요한 경우 결정 이유와 영향을 기록하고 기존 PRD와의 정합성을 검토한다. ADR-002 인증 개정안은 기준 Commit `ad4b505d25b609a681b2726d590881c7cfb7affb`에 GitHub 게시됐다.

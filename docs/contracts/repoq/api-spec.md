@@ -2,7 +2,7 @@
 
 > **Practice. Solve. Grow.**  
 > 문서 ID: `DF-API-RQ-ALL-001` (제안) · 버전: **v0.2 + ADR-002 인증 개정안** · 최초 작성일: 2026-10-21 · 인증 개정일: 2026-10-26  
-> 상태: **통합 검토 초안 — 기존 회원 탈퇴 연동 유지 / 인증 로컬 개정안은 아직 GitHub 미반영 / Production 상세 계약 전**  
+> 상태: **통합 검토 초안 — 기존 회원 탈퇴 연동 유지 / ADR-002 인증 개정안 GitHub 게시 / Production 상세 계약 전**  
 > 기준: [RepoQ PRD v1.1 개정 초안](../../products/repoq/PRD.md) · [서비스 경계 설계서](../../architecture/repoq-service-boundaries.md) · [ADR-001](../../adr/0001-repoq-service-decomposition.md) · [ADR-002](../../adr/0002-devfield-common-authentication.md)
 
 ## 1. 한눈에 보는 구조
@@ -18,7 +18,9 @@ RepoQ 화면은 **프로젝트 선택·분석 → 자유 연습 또는 모의면
 | Auth → RepoQ | 회원 탈퇴 시 Project·Interview의 사용자 데이터 삭제 | 내부용 2개(서비스별 1개) |
 | **합계** | **서비스·주소·메서드 조합** | **21개** |
 
-**범위 주의:** 이메일 회원가입·로그인, 소셜 로그인, 이메일 확인, 비밀번호 관리, 로그아웃은 *반드시 제공할 기능*이지만 Auth 상세 Endpoint·콜백은 아직 정하지 않아 **21개에 포함하지 않았다.** 후속 상세 계약에서 경로를 정하면 전체 엔드포인트 수는 늘어날 수 있다. 두 회원 탈퇴 내부 API는 경로 문자열이 같아도 호출받는 서비스가 달라 각각 센다. [ADR-002](../../adr/0002-devfield-common-authentication.md)는 독립 Auth Service, Spring Boot 4.x + Spring Security 7.x, 사용자 API용 RS256 JWT를 결정하며 범용 OAuth/OIDC Provider 구축을 승인하지 않는다.
+**범위 주의:** 이메일 회원가입·로그인, 소셜 로그인, 이메일 확인, 비밀번호 관리, 로그아웃은 *반드시 제공할 기능*이지만 이 RepoQ 통합 명세의 **21개에 포함하지 않았다.** Auth 상세 Endpoint·콜백은 별도 로컬 v0.1 초안에서 제안하며 기존 21개와 합산하지 않는다. 두 회원 탈퇴 내부 API는 경로 문자열이 같아도 호출받는 서비스가 달라 각각 센다. [ADR-002](../../adr/0002-devfield-common-authentication.md)는 독립 Auth Service, Spring Boot 4.x + Spring Security 7.x, 사용자 API용 RS256 JWT를 결정하며 범용 OAuth/OIDC Provider 구축을 승인하지 않는다.
+
+공통 인증의 **별도 상세 초안**은 [DevField 공통 Auth API 계약서 v0.1](../auth/api-spec.md)과 [Auth 데이터 모델 및 ERD v0.1](../../architecture/auth/data-model.md)에 둔다. 이 문서의 기존 P/I/A/X 21개 번호·의미는 유지하며 신규 Auth 계약 수는 별도로 센다. 두 신규 문서는 로컬 작성 초안으로 GitHub Push 전이다.
 
 ### 질문 용어
 
@@ -249,4 +251,4 @@ RepoQ 화면은 **프로젝트 선택·분석 → 자유 연습 또는 모의면
 
 **설계 원칙:** 불필요한 API를 늘리지 않고, 검증된 사용자 흐름부터 구현한다. 미확정 기술·예외 처리는 필요한 순간에 구체화하며, 기존 PRD의 FREE/MOCK·Snapshot·데이터 소유권을 훼손하지 않는다.
 
-**게시 상태:** 이 `v0.2 + ADR-002 인증 개정안`은 로컬 문서 변경이며 아직 GitHub에 반영되지 않았다.
+**게시 상태:** 이 `v0.2 + ADR-002 인증 개정안`은 기준 Commit `ad4b505d25b609a681b2726d590881c7cfb7affb`에 GitHub 게시됐다. 이 문서에서 연결한 Auth API·ERD v0.1은 아직 로컬 작성 초안이다.

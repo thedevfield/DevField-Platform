@@ -6,8 +6,8 @@
 > 상태: **Accepted — 인증 아키텍처 결정, 구현·Production 검증 전**  
 > 버전: `v1.0 (ADR-002 인증 개정안)`  
 > 적용 기준 HEAD: `79efcca35818810caf07c1472f5aed072c6327e6`  
-> 게시 상태: **로컬 문서 개정안 — 이 변경은 아직 GitHub에 반영되지 않음**  
-> 관련 문서: [RepoQ PRD](../products/repoq/PRD.md) · [서비스 경계](../architecture/repoq-service-boundaries.md) · [ADR-001](0001-repoq-service-decomposition.md) · [통합 API 계약](../contracts/repoq/api-spec.md)
+> 게시 상태: **기준 Commit `ad4b505d25b609a681b2726d590881c7cfb7affb`에 GitHub 게시됨**  
+> 관련 문서: [RepoQ PRD](../products/repoq/PRD.md) · [서비스 경계](../architecture/repoq-service-boundaries.md) · [ADR-001](0001-repoq-service-decomposition.md) · [통합 API 계약](../contracts/repoq/api-spec.md) · [Auth API v0.1](../contracts/auth/api-spec.md) · [Auth ERD v0.1](../architecture/auth/data-model.md)
 
 ## 1. 배경과 결정 범위
 
