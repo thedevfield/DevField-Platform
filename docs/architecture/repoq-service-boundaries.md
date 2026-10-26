@@ -2,10 +2,10 @@
 
 > **DevField — Practice. Solve. Grow.**  
 > 문서 ID: `DF-ARCH-RQ-001`  
-> 버전: `v1.0` (상위 논리 아키텍처 기준선)  
+> 버전: `v1.0 + ADR-002 인증 개정안` (상위 논리 아키텍처 기준선 유지)  
 > 작성일: `2026-10-17`  
-> 상태: **상위 서비스 경계 승인 / 상세 API·DB·기술 스택 설계 전**  
-> 관련 문서: [RepoQ MVP PRD v1.0](../products/repoq/PRD.md) · [ADR-001: RepoQ 서비스 분리](../adr/0001-repoq-service-decomposition.md)
+> 상태: **상위 서비스 경계 승인 / ADR-002 인증 로컬 개정안은 아직 GitHub 미반영 / Production 상세 계약 설계 전**  
+> 관련 문서: [RepoQ MVP PRD](../products/repoq/PRD.md) · [ADR-001: RepoQ 서비스 분리](../adr/0001-repoq-service-decomposition.md) · [ADR-002: 공통 인증](../adr/0002-devfield-common-authentication.md)
 
 ## 1. 목적과 적용 범위
 
@@ -20,12 +20,15 @@
 - 각 서비스는 소유한 데이터만 직접 읽거나 변경한다. 다른 서비스의 DB/테이블에는 직접 접근하지 않는다.
 - 서비스 간 기본 연동은 **동기 REST API**이며, 면접은 기준 `AnalysisSnapshot`에 고정된다.
 - **Project Service가 프로젝트 삭제 절차를 조정**하고, Interview Service는 관련 기록 삭제와 신규 생성 차단을 수행한다.
-- DevField의 공통 User ID/Identity는 RepoQ 도메인 밖의 플랫폼 공통 책임이다. 인증 구현 제품이나 별도 Identity 마이크로서비스의 필요성은 미정이다.
+- DevField의 공통 User ID/Identity는 RepoQ 도메인 밖의 **독립 Auth Service** 책임이다. `DevField-Auth` 별도 Repository는 생성 예정이며 이번 문서 작업에서 생성하지 않는다. Auth는 Spring Boot 4.x + Spring Security 7.x로 구현하고 Better Auth는 Production 인증으로 채택하지 않는다.
 
 **이번 문서에서 확정하지 않는 것**
 
-- 웹 프레임워크·백엔드 언어·DBMS·ORM·LLM 공급자 및 모델·인증 제품/토큰 형식
-- 별도 API Gateway/BFF 도입, 백엔드·DB 호스팅 업체와 네트워크/도메인
+- RepoQ의 나머지 웹·백엔드 기술 스택, DBMS·ORM·LLM 공급자 및 모델
+- BFF 도입과 브라우저 호출 경유 방식, Production Cookie·domain·CORS·CSRF 상세 구성
+- JWT·세션 수명, refresh·즉시 폐기·상태 전파, 키 저장·교체·JWKS 운영
+- 서비스 간 인증·사용자 위임 방식, 실제 issuer·audience 값
+- 백엔드·DB 호스팅, 물리 DB·스키마·마이그레이션과 네트워크/도메인
 - 실제 URL·HTTP 메서드, JSON 필드, DB 컬럼·인덱스, 메시지 브로커 또는 작업 큐 제품
 - 분석량·토큰 예산·타임아웃·재시도 횟수 같은 **실측이 필요한 수치**
 
@@ -34,7 +37,7 @@
 ```mermaid
 flowchart TB
     User[사용자] --> Web[DevField-Web / Vercel]
-    Web --> Identity[공통 인증·Identity / 방식 미정]
+    Web --> Identity[DevField Auth Service]
     Web --> Project[RepoQ Project Service]
     Web --> Interview[RepoQ Interview Service]
     Interview -->|REST / Snapshot 조회 및 소유권 확인| Project
@@ -43,9 +46,10 @@ flowchart TB
     Project -.->|분석 시 필요하다면| LLM
     Project --> PData[(Project 소유 데이터)]
     Interview --> IData[(Interview 소유 데이터)]
+    Identity --> AData[(Auth 소유 데이터)]
 ```
 
-> 위 그림은 **논리적 호출·소유권**을 보여준다. 브라우저에서 각 서비스를 직접 호출하는지, Web의 서버측 중계나 Gateway를 사용할지는 추후 결정한다. 비밀 키를 브라우저에 노출해서는 안 된다. 별도 Identity Service, DB 서버 2개, API Gateway를 도식의 필수 구현으로 해석하지 않는다.
+> 위 그림은 **논리적 호출·소유권**을 보여준다. Auth Service 분리는 승인됐지만 브라우저에서 각 서비스를 직접 호출하는지, Web의 서버측 중계나 BFF/Gateway를 사용할지는 추후 결정한다. 비밀 키를 브라우저에 노출해서는 안 된다. 물리 DB 서버 수나 API Gateway를 도식에서 확정하지 않는다.
 
 ### 2.1 Repository와 배포 단위
 
@@ -54,6 +58,7 @@ flowchart TB
 | `thedevfield/.github` | Organization 소개 | 존재 |
 | `thedevfield/DevField-Platform` | 제품 PRD·상위 아키텍처·ADR·공통 계약·통합 지침 | 존재, 현재 설계 문서 대상 |
 | `thedevfield/DevField-Web` | 공통 Web, RepoQ UI, Vercel 배포 | 생성 예정 |
+| `thedevfield/DevField-Auth` | 공통 인증·User ID·로그인 수단·탈퇴 조정 | 별도 Repository 생성 예정, 이번 작업에서는 미생성 |
 | `thedevfield/RepoQ` | Project/Interview 서비스 구현·자체 테스트·제품 단위 통합 환경 | 생성 예정 |
 | `thedevfield/AlgoField`, `thedevfield/InfraField` | 후속 제품 구현 | 향후 |
 
@@ -89,18 +94,18 @@ flowchart TB
 6. **삭제 참여:** Project 삭제 요청 시 해당 Project의 신규 면접 시작/진행 쓰기를 차단하고 관련 세션·질문·평가·세션용 근거 캐시를 삭제·확인한다.
 7. **내부 AI 품질:** 주요·꼬리질문 품질 개선과 회귀 검증은 Interview 도메인의 생성 규칙과 연결되나, 반드시 사용자-facing DB 테이블이나 별도 서비스를 만들 필요는 없다.
 
-### 3.3 DevField 공통 Identity와 Web
+### 3.3 DevField Auth Service와 Web
 
-- **Identity(논리적 소유 영역):** 플랫폼 공통 User ID, Kakao·Google·GitHub SocialIdentity의 안정적 제공자 식별자, 명시적 소셜 계정 연결/해제, 탈퇴·정책. 이메일만으로 자동 병합하지 않는다.
-- **Project/Interview:** 인증이 끝난 User ID를 기준으로 서버 측 접근 권한을 확인한다. **Web이 보낸 임의 User ID를 권한 근거로 그대로 신뢰하지 않는다.**
+- **Auth(독립 서비스):** 플랫폼 공통 User ID, 이메일 로그인 수단, Kakao·Google·GitHub SocialIdentity의 안정적 제공자 식별자, 명시적 계정 연결/해제, 인증 상태, 회원 탈퇴 `DELETING`·재시도 조정을 소유한다. 같은 이메일만으로 자동 병합하지 않고 다른 User ID에 연결된 수단을 자동 이전하지 않는다. 마지막 로그인 수단 해제를 차단하고 Kakao 이메일 미제공을 가짜 이메일로 해결하지 않는다.
+- **Project/Interview:** Auth 발급 RS256 사용자 JWT의 서명·허용 알고리즘·`iss`·`aud`·유효기간을 공개키·JWKS로 검증하고 검증된 `sub`를 DevField User ID로 사용한다. 이후 **각 서비스가 별도로 리소스 소유권을 검증**한다. Web이 보낸 임의 User ID를 권한 근거로 신뢰하지 않는다.
 - **Web:** 로그인, 프로젝트 등록·분석 대기, `READY` 이후 자유 연습/모의면접 선택, 면접·평가·복습 화면. 자체적으로 서비스별 데이터의 소유권을 갖지 않는다.
-- **선정 보류:** 별도 Identity Service 직접 개발 vs 관리형 인증, Gateway/BFF 도입 필요성. 공통 인증 도메인 책임의 확정과 물리 서비스의 분리 결정은 다르다.
+- **후속 설계:** BFF 도입·브라우저 호출 경유 방식, Production Cookie·domain·CORS·CSRF, 토큰·세션 수명·refresh·즉시 폐기, 키 저장·교체·JWKS 운영, 서비스 간 인증·사용자 위임을 확정해야 한다. Spring Security 채택은 범용 OAuth/OIDC Provider 구축 승인이 아니다.
 
 ## 4. 데이터 소유권 및 접근 규칙
 
 | 데이터/개념 엔터티 | 진실 원본(Source of Truth) | 타 서비스 사용 방식 |
 |---|---|---|
-| `DevFieldUser`, `SocialIdentity` | DevField 공통 Identity 영역 | 검증된 사용자 주체 ID/권한 계약 사용 |
+| `DevFieldUser`, `EmailCredential`, `SocialIdentity`, 인증·탈퇴 상태 | Auth Service | 검증된 사용자 주체 ID/권한 계약 사용, 타 서비스 DB 직접 접근 금지 |
 | `RegisteredProject` | Project | Interview는 프로젝트 ID 및 유효성·소유권 확인 API 사용 |
 | `AnalysisSnapshot` | Project | Interview가 Snapshot ID로 불변 분석 결과 API 사용 |
 | `EvidenceReference`, `AvailableTopic` | Project | Interview는 제한된 근거·주제 조회 계약 사용 |
@@ -114,7 +119,7 @@ flowchart TB
 **데이터 무결성 규칙**
 
 - 서로 다른 서비스의 DB 사이에 **Cross-service Foreign Key나 JOIN**을 만들지 않는다. `projectId`, `snapshotId`, `userId`는 명시된 API로 확인할 수 있는 논리 참조다.
-- 초기에는 **동일한 물리 DB 서버**를 공유할 수 있으나 서비스별 스키마/권한/마이그레이션 소유권을 분리한다. 물리 DB 제품·서버 수는 미정이다.
+- 물리 DB 공유 여부·제품·서버 수, 스키마·권한·마이그레이션 방식은 후속 결정이다. 결정 방식과 관계없이 서비스별 데이터 소유권을 지키고 다른 서비스의 DB에 직접 접근하지 않는다.
 - Snapshot은 공개된 분석 결과의 불변 버전이다. 재분석은 **새 Snapshot 생성 + 최신 참조 전환**이며 과거 Snapshot 덮어쓰기가 아니다.
 - Interview는 질문 생성 중 Project API 반복 의존을 줄이기 위해 **필요 최소한의 Snapshot/근거를 세션 전용 컨텍스트로 확보할 수 있다**. 이는 Project 원본 데이터 소유권을 이전한다는 뜻이 아니며, 버전·보관·삭제 정책을 따른다.
 - 다른 사용자가 동일한 **공개** GitHub Repository를 등록한 데이터는 별도로 보호된다. 본인 프로젝트를 삭제할 때 다른 사용자의 기록이 삭제되어서는 안 된다.
@@ -126,7 +131,7 @@ flowchart TB
 - **동기 REST 중심:** 사용자 진입 흐름, READY Snapshot 검증·조회, 삭제 차단/완료 확인을 명시적 서비스 계약으로 수행한다.
 - **비동기 사용자 경험과 동기 서비스 API는 별개:** 긴 GitHub 분석은 `작업 ID + 상태 조회`로 처리할 수 있다. 브로커 기반 이벤트는 필수 구성으로 확정하지 않는다.
 - **면접 세션 시작 경계에서만 Project 조회를 최소화:** 이후 진행 중 질문·꼬리질문은 고정된 Snapshot 컨텍스트로 수행한다.
-- **보안:** Web/API 진입 경로는 인증·인가, 내부 REST는 호출 주체 검증과 서비스 인증을 적용한다. 구체적 토큰/세션·TLS 내부 구성은 후속 설계에서 정한다.
+- **보안:** 사용자 API에서 Project/Interview는 Auth 발급 RS256 JWT를 공개키·JWKS로 검증하며 서명·허용 알고리즘·`iss`·`aud`·유효기간을 확인한다. 검증된 `sub`가 공통 User ID이고 리소스 소유권은 서비스별로 다시 확인한다. 내부 REST에는 별도의 호출 주체·서비스 권한 검증이 필요하다. 사용자 JWT 검증만으로 내부 호출을 허용하지 않는다. 구체적 서비스 간 인증·위임, 토큰 상태 전파·즉시 폐기, TLS 구성은 후속 설계다.
 - **운영:** 요청 ID/연관 ID, 타임아웃, 재시도 가능한 오류, 멱등성 키, 계약 버전 및 하위 호환성을 위험도에 맞춰 정의한다.
 
 ### 5.2 최소 API 계약 후보 (아직 Endpoint 확정 아님)
@@ -226,7 +231,7 @@ sequenceDiagram
 - **중간 실패:** Interview 삭제 실패/네트워크 타임아웃 시 Project는 `DELETING`을 유지하고 완료로 표시하지 않는다. 같은 삭제 작업 ID로 재시도 가능해야 한다. 타임아웃은 실패 확정이 아니므로 결과 조회·재호출의 안전성이 필요하다.
 - **재등록:** 삭제가 확인된 후 동일 Repository ID로 신규 Project ID를 생성할 수 있다. 오래된 Interview 요청이 새 Project로 재연결되면 안 된다.
 - **보안:** 프로젝트 삭제로 다른 사용자/다른 프로젝트의 동일 GitHub 원본에서 유래한 정보까지 제거하지 않는다.
-- **계정 탈퇴:** DevField 공통 Identity에서 개별 제품의 삭제 완료를 확인하는 별도 계약이 필요하며, 이 문서가 그 절차의 단일 구현 방식을 확정하지 않는다.
+- **계정 탈퇴:** Auth가 [A-04·X-03·X-04 계약](../contracts/repoq/api-spec.md)을 따라 본인 재확인과 `DELETING`·재시도를 조정한다. Project/Interview는 해당 User ID의 자기 데이터만 삭제하고 신규·늦은 쓰기를 차단하며, Auth는 **두 서비스 모두의 완료 확인 전 탈퇴 완료로 표시하지 않는다**. 타 사용자 데이터는 보존한다. JWT 서명 검증만으로 즉시 폐기나 `DELETING` 상태 전파가 해결되지는 않으므로 후속 계약·통합 검증이 필요하다.
 
 ### 6.3 일시 중단·완료·모의면접 포기
 
@@ -287,11 +292,11 @@ RepoQ/
 | 결정 영역 | 현재 상태 | 다음 산출물 |
 |---|---|---|
 | API Contract | **통신 원칙 확정**, 상세 계약 미확정 | 호출별 OpenAPI/내부 REST 계약·상태/오류 모델·동시성·멱등 규칙 |
-| 인증 구현 | 공통 Identity/3개 소셜 제공자 확정, 구현 미정 | Identity 경계, 소셜 로그인·계정 연결·접근 토큰/세션 설계 |
+| 인증 구현 | 독립 Auth Service, Spring Boot 4.x + Spring Security 7.x, 사용자 API용 RS256 JWT 결정; 구현·Production 검증 전 | 인증 Endpoint, 실제 issuer/audience, 토큰·세션 수명·refresh·폐기, 키/JWKS, 계정 상태 전파와 소셜 연결 검증 |
 | DB/ERD | 엔터티 소유권 확정, 제품/스키마 미정 | Project/Interview 각각 ERD, 유일성, 불변 Snapshot, 삭제 정책 |
 | AI 구현 | 근거 기반 생성·평가 책임 확정, 모델 미정 | 수집·컨텍스트·프롬프트·형식·품질 루브릭/회귀 검증 |
-| Web/Gateway | Vercel 확정, 서비스 진입 방식 미정 | 인증/BFF/CORS/HTTPS API 진입 및 Preview/Production 설계 |
-| 운영·배포 | 서비스 독립 배포 원칙 확정, 호스팅 미정 | Hosting/DB 비용·배포·로그·롤백 전략 및 ADR |
+| Web/Gateway | Vercel 확정, BFF·브라우저 호출 경유 방식 미정 | Production Cookie·domain·CORS·CSRF·HTTPS API 진입 및 Preview/Production 설계 |
+| 운영·배포 | 서비스 독립 배포 원칙 확정, Auth·RepoQ 호스팅과 물리 DB 미정 | Hosting/DB·스키마·마이그레이션, 키 운영·배포·로그·롤백 전략 및 ADR |
 | 실측 정책 | 분석 파일/호출량/유예기간은 초기값 | 샘플 분석으로 제한·성능·비용 재검증 |
 
 ## 11. 경계 결정 검증 기준
@@ -310,4 +315,4 @@ RepoQ/
 
 ---
 
-**문서 관리 원칙:** 상위 서비스 경계는 승인된 결정으로 유지한다. API URL·DB 필드·인증/호스팅 제품 등의 세부 선택은 후속 ADR·계약 문서에서 확정한다. 변경이 필요한 경우 결정 이유와 영향을 기록하고 기존 PRD와의 정합성을 검토한다.
+**문서 관리 원칙:** 상위 서비스 경계는 승인된 결정으로 유지한다. 인증 서비스·기술·사용자 JWT 검증 경계는 [ADR-002](../adr/0002-devfield-common-authentication.md)에 따른다. API URL·DB 필드·Production 인증/호스팅 상세 선택은 후속 ADR·계약 문서에서 확정한다. 변경이 필요한 경우 결정 이유와 영향을 기록하고 기존 PRD와의 정합성을 검토한다. 이 ADR-002 인증 개정안은 아직 GitHub에 반영되지 않았다.

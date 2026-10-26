@@ -6,17 +6,17 @@
 | 문서 항목 | 내용 |
 |---|---|
 | 문서 ID | DF-PRD-RQ-001 |
-| 버전 | **v1.1 (v1.0 기준선 개정 초안)** |
+| 버전 | **v1.1 (v1.0 기준선 개정 초안) + ADR-002 인증 개정안** |
 | 승인 기준일 | v1.0: 2026-10-17 · 개정 사항 승인: 2026-10-22 |
-| 상태 | **이메일 가입·회원 탈퇴 연동 변경 승인 반영 / GitHub 게시된 개정 초안 / 상세 구현·출시 검증 전** |
+| 상태 | **이메일 가입·회원 탈퇴 연동 변경 승인 반영 / ADR-002 인증 로컬 개정안은 아직 GitHub 미반영 / 상세 구현·출시 검증 전** |
 | 범위 | **RepoQ 정식 MVP + Vercel 웹 배포**, 초기 PoC 별도 구분 |
 | 승인권자 | 프로젝트 오너 |
 | 상위 브랜드 | DevField — `Practice. Solve. Grow.` |
-| 연관 문서 | v0.4 요구사항 명세서, [DevField Organization](https://github.com/thedevfield) |
+| 연관 문서 | v0.4 요구사항 명세서, [DevField Organization](https://github.com/thedevfield), [ADR-001](../../adr/0001-repoq-service-decomposition.md), [ADR-002](../../adr/0002-devfield-common-authentication.md) |
 
 ## 0. 문서 상태·사용 원칙
 
-이 문서는 승인된 **RepoQ 정식 MVP 요구사항 기준선(v1.0)** 에 2026-10-22 승인된 **자체 이메일·비밀번호 가입 및 회원 탈퇴 연동**을 반영한 v1.1 개정 초안이다. 기존 v1.0은 Git 이력에 보존된다. **Vercel 웹 프론트엔드 배포와 외부 접속 가능한 End-to-End 사용 흐름**을 P0에 포함한다. 설계 방식, 공급업체 선택, 파일·토큰 한도 등 별도 검증 항목은 아직 확정하지 않는다. 이 승인은 **구현·테스트·배포 완료를 의미하지 않는다.**
+이 문서는 승인된 **RepoQ 정식 MVP 요구사항 기준선(v1.0)** 에 2026-10-22 승인된 **자체 이메일·비밀번호 가입 및 회원 탈퇴 연동**을 반영한 v1.1 개정 초안이다. 기존 v1.0은 Git 이력에 보존된다. 이번 **ADR-002 인증 개정안**은 기존 요구사항을 변경하지 않고 공통 인증의 소유자와 기술·검증 경계를 명시한다. 이 변경은 아직 GitHub에 반영되지 않았다. **Vercel 웹 프론트엔드 배포와 외부 접속 가능한 End-to-End 사용 흐름**을 P0에 포함한다. 파일·토큰 한도 등 별도 검증 항목과 Production 인증 상세 구성은 아직 확정하지 않는다. 이 승인은 **구현·테스트·배포 완료를 의미하지 않는다.**
 
 - **[확정]**: 사용자가 승인한 제품 방향·정책 및 MVP Scope.
 - **[배포 요구]**: Vercel 웹 프론트엔드 Production 배포와 외부 E2E 검증이 MVP 완료 조건이다. 백엔드/DB 배포 환경과 도메인은 상세 설계에서 정한다.
@@ -27,7 +27,7 @@
 - **P1**: MVP 후속 개선 또는 필요한 조건이 충족된 이후 도입.
 - **Out of Scope**: 현재 제품 범위에서 제외.
 
-요구사항 식별자는 기존 `FR-*`, `NFR-*`, `AT-*`를 모두 유지했고 신규 요구사항은 새 번호로 추가했다. 기술·서비스·저장소 개수는 이 PRD에서 임의 확정하지 않는다.
+요구사항 식별자는 기존 `FR-*`, `NFR-*`, `AT-*`를 모두 유지했고 신규 요구사항은 새 번호로 추가했다. 인증 서비스 분리와 기술은 ADR-002에서 결정하며, RepoQ의 나머지 기술 스택·물리 DB·호스팅은 이 PRD에서 임의 확정하지 않는다.
 
 ### 요구사항 추적 집계
 
@@ -50,6 +50,7 @@
 | v0.4 | 자유 연습·모의면접 및 평가·이력·재분석·인증·AI 품질·운영 정책 정리 | 이전 초안 |
 | **v1.0** | **1인 개발·단일 AI 에이전트 운영, 11월 말 목표(12월 유연 연장), 정식 MVP Scope 승인, Vercel 웹 프론트엔드 Production 배포·실서비스 E2E 검증 추가** | **제품 요구사항 기준선 승인** |
 | **v1.1 개정 초안** | **자체 이메일·비밀번호 가입·로그인과 회원 탈퇴의 Project/Interview 데이터 삭제·완료 확인을 P0에 추가** | **변경 사항 승인 반영, GitHub 게시** |
+| **v1.1 + ADR-002 인증 개정안** | **기존 요구사항을 유지하고 독립 Auth Service·Spring Security·RS256 JWT 검증 경계를 후속 ADR과 정합화** | **로컬 작성, 아직 GitHub 미반영** |
 
 ### v0.4에서 유지하는 핵심 제품 정책
 
@@ -73,7 +74,7 @@
 | 코딩테스트 | **AlgoField (알고필드)** | 알고리즘·자료구조 훈련 및 채점 | 향후 독립 서비스 |
 | 인프라 훈련 | **InfraField (인프라필드)** | 인프라·시스템 장애 대응 및 실무 훈련 | 향후 독립 서비스 |
 
-세 제품은 DevField의 공통 사용자 경험과 필요한 계정 기능을 공유하지만 서로의 이용을 필수로 하지 않는다. 플랫폼 방향은 **MSA + Multi-Repository + 도메인별 독립 개발·배포**다. RepoQ 내부 마이크로서비스 분리안은 아직 설계 검토 대상이다.
+세 제품은 DevField의 공통 사용자 경험과 필요한 계정 기능을 공유하지만 서로의 이용을 필수로 하지 않는다. 플랫폼 방향은 **MSA + Multi-Repository + 도메인별 독립 개발·배포**다. RepoQ의 Project/Interview 분리는 [ADR-001](../../adr/0001-repoq-service-decomposition.md), 공통 Auth Service 분리는 [ADR-002](../../adr/0002-devfield-common-authentication.md)에서 승인했다. 구현·배포 완료 상태를 뜻하지 않는다.
 
 ### 1.2 해결하려는 문제 [확정]
 
@@ -338,6 +339,8 @@ flowchart TD
 
 이 흐름은 **프로젝트 하나의 삭제**와 구분된다. 타 사용자에게 속한 프로젝트·면접 기록은 보존한다. 백업·법정 보관 범위 및 물리 구현은 상세 설계에서 정한다.
 
+**인증 아키텍처 적용:** [ADR-002](../../adr/0002-devfield-common-authentication.md)에 따라 독립 Auth Service가 공통 User ID·이메일 로그인 수단·SocialIdentity·인증 상태와 `DELETING` 재시도를 소유한다. Auth는 Spring Boot 4.x + Spring Security 7.x로 구현하고 사용자 API에는 Auth 발급 RS256 JWT를 사용한다. Project/Interview는 공개키·JWKS로 서명·허용 알고리즘·`iss`·`aud`·유효기간을 검증한 `sub`를 DevField User ID로 사용한 뒤 각 리소스 소유권을 별도 검증한다. 내부 서비스 호출 권한은 사용자 JWT 검증과 별개다. JWT 서명 검증만으로 즉시 폐기 또는 탈퇴 상태 전파가 해결되지는 않는다. 브라우저 호출 경유 방식, Production Cookie·domain·CORS·CSRF, 토큰·세션 수명과 refresh·폐기, 키 운영, 서비스 간 인증·위임 및 실제 issuer·audience 값은 후속 설계 대상이다.
+
 ---
 ## 6. 기능 요구사항 (Functional Requirements)
 
@@ -564,7 +567,7 @@ flowchart TD
 |---|---|---|
 | `DevFieldUser` | 플랫폼 공통 사용자 식별 | 내부 User ID, 가입·탈퇴 상태 |
 | `SocialIdentity` | 소셜 로그인 연결 | User ID, `provider`, 제공자 고유 ID, 연결/해제; `(provider, provider_user_id)` 유일 |
-| `EmailCredential` | 자체 이메일 로그인 수단의 논리 개념 | User ID, 확인된 이메일, 안전한 비밀번호 검증 정보; 물리 테이블·제품 미확정 |
+| `EmailCredential` | Auth가 소유하는 자체 이메일 로그인 수단의 논리 개념 | User ID, 확인된 이메일, 안전한 비밀번호 검증 정보; 물리 테이블·DB 제품 미확정 |
 | `AccountDeletion` | 회원 탈퇴 작업의 논리 상태 | User ID, `DELETING`, 서비스별 완료 확인·재시도; 물리 저장 방식 미확정 |
 | `RegisteredProject` | 사용자 등록 프로젝트 | User ID, GitHub Repository ID, 표시 이름, 활성 상태 |
 | `AnalysisSnapshot` | 특정 Commit의 프로젝트 분석 | Project ID, Repository, 브랜치, Commit, 상태, 분석 버전/누락 범위 |
@@ -591,7 +594,7 @@ erDiagram
     PRACTICE_SESSION ||--o| SESSION_EVALUATION : mock_summary
 ```
 
-이 모델은 **물리 DB 테이블 수나 서비스 간 Foreign Key를 확정하지 않는다.** DevField 공통 사용자 데이터와 RepoQ의 프로젝트·면접 도메인 데이터는 책임 경계에 맞춰 소유자를 정하며, 독립 서비스 DB를 서로 직접 조회하지 않는다.
+이 모델은 **물리 DB 테이블 수나 서비스 간 Foreign Key를 확정하지 않는다.** Auth가 공통 사용자·로그인 수단·인증 상태의 진실 원본을, Project와 Interview가 각각 프로젝트·면접 데이터를 소유한다. 서비스는 서로의 DB를 직접 조회하지 않는다. 물리 DB·스키마·마이그레이션은 후속 결정이다.
 
 **데이터 관계 관련 필수 규칙:**
 
@@ -614,18 +617,20 @@ erDiagram
 - 서로 다른 서비스의 DB를 직접 접근하지 않고 명시적인 API·계약을 이용한다.
 - RepoQ의 핵심 차별화는 **실제 코드 근거 기반 질문·꼬리질문·정성 피드백**이다. 단순히 서비스 수를 늘리는 것은 목표가 아니다.
 - Kafka, Redis, Kubernetes, Vector DB, 별도 AI Microservice 등은 자동 도입하지 않는다.
+- [ADR-002](../../adr/0002-devfield-common-authentication.md)에 따라 DevField 공통 인증은 독립 Auth Service이며 Spring Boot 4.x + Spring Security 7.x를 사용한다. Better Auth는 Production 인증으로 채택하지 않는다. `DevField-Auth` 별도 Repository는 생성 예정이며 이 문서 개정에서 생성하지 않는다. 이 결정은 범용 OAuth/OIDC Provider 구축을 승인하지 않는다.
+- Auth 발급 RS256 JWT를 사용자 API 인증에 사용한다. Project/Interview는 공개키·JWKS와 서명·허용 알고리즘·`iss`·`aud`·유효기간을 검증하고 `sub`를 공통 User ID로 취급한다. 서비스별 리소스 소유권과 내부 호출 권한은 각각 별도로 검증한다.
 
 ### 10.2 설계 단계에서 결정할 기술 사항
 
 | 영역 | 검토할 책임·대안 | PRD에서 확정하지 않는 것 |
 |---|---|---|
-| 공통 사용자·인증 | DevField 이메일·소셜 Identity의 소유자, RepoQ 접근 인증, 탈퇴 조정 | 인증 제품, JWT/세션 구현 방식, 별도 Auth Service 여부 |
-| Project Analysis | 공개 GitHub 수집, Snapshot, 근거, 분야 식별 | 단일 서비스/분리 서비스, 작업 큐·인덱싱 기술 |
+| 공통 사용자·인증 | 독립 Auth Service가 공통 User ID·이메일·SocialIdentity·인증 상태·탈퇴 조정을 소유; Spring Boot 4.x + Spring Security 7.x, 사용자 API용 RS256 JWT 결정 | 인증 상세 Endpoint·실제 issuer/audience, JWT·세션 수명·refresh·즉시 폐기, 키·JWKS 운영, 서비스 간 인증·위임 |
+| Project Analysis | Project Service가 공개 GitHub 수집, Snapshot, 근거, 분야를 소유 | 작업 큐·인덱싱 기술과 RepoQ의 나머지 기술 스택 |
 | Interview | FREE/MOCK 세션, 질문 묶음, 답변 평가·이력 | AI 호출 오케스트레이션 책임·저장소·DB 제품 |
-| Web / Gateway | 로그인/등록/연습/복습 화면 및 인증 진입점 | Gateway 제품 및 별도 Gateway 저장소 필수 여부 |
+| Web / Gateway | 로그인/등록/연습/복습 화면 및 인증 진입점 | BFF 도입·브라우저 호출 경유 방식, Production Cookie·domain·CORS·CSRF 구성, Gateway 제품 |
 | LLM / 검색 | 근거 추출·질문·꼬리질문·평가, 컨텍스트/실패·비용 관리 | 모델명, 프롬프트 구조, Embedding/AST 필수 여부 |
 | 데이터 삭제 | 계정 탈퇴·프로젝트 삭제·회차 포기/삭제의 서비스 간 동기화 | Cross-service DB Cascade, 메시지 브로커 강제 |
-| 배포·관측성 | **Vercel 프론트엔드 배포**, 재현 가능한 로컬 실행, 최소 CI 및 로그·메트릭 | 백엔드/DB 호스팅 업체·Gateway·Kubernetes 고정 여부 |
+| 배포·관측성 | **Vercel 프론트엔드 배포**, 재현 가능한 로컬 실행, 최소 CI 및 로그·메트릭 | Auth/RepoQ의 물리 DB·스키마·마이그레이션·호스팅, Gateway·Kubernetes 고정 여부 |
 
 ### 10.3 공통 AI 질문·평가 엔진의 모드별 입력 차이
 
@@ -779,7 +784,7 @@ flowchart TD
 | **D-23** | Vercel 웹 프레임워크/프로젝트 연결·환경변수·Production 주소 결정 | 기술 스택·배포 설계 단계 |
 | **D-24** | 서버 API·DB·인증 백엔드 호스팅·공개 HTTPS·OAuth 콜백/CORS 설계 및 비용 산정 | 배포 설계 단계, Production E2E 전 |
 
-> **원칙:** PRD v1.0은 승인된 기존 기준선이며 이 문서는 이메일 가입·회원 탈퇴 연동 변경을 반영한 v1.1 개정 초안이다. **LLM 제공자, DB 종류, Gateway/인증 제품, 분산 메시징 기술 선택을 제품 요구사항 확정의 선행 조건으로 강제하지 않는다.** 실측이 필요한 임계치는 `검증 필요`와 설정 기본값을 분리해 관리한다.
+> **원칙:** PRD v1.0은 승인된 기존 기준선이며 이 문서는 이메일 가입·회원 탈퇴 연동 변경을 반영한 v1.1 개정 초안에 ADR-002 인증 개정안을 덧붙였다. Auth Service·Spring Security·RS256 JWT 결정은 [ADR-002](../../adr/0002-devfield-common-authentication.md)를 따른다. **LLM 제공자, DB 종류, Gateway와 분산 메시징 기술 선택을 제품 요구사항 확정의 선행 조건으로 강제하지 않는다.** 실측이 필요한 임계치는 `검증 필요`와 설정 기본값을 분리해 관리한다.
 
 ---
 
@@ -868,4 +873,4 @@ flowchart TD
 
 ---
 
-**상태: v1.1 개정 초안 — 사용자 승인된 이메일 가입·회원 탈퇴 연동 변경을 반영. Approved Baseline v1.0은 Git 이력에 보존되며 서비스 구현·검증·실제 배포는 아직 수행되지 않음.**
+**상태: v1.1 개정 초안 + ADR-002 인증 개정안 — 기존 이메일 가입·회원 탈퇴 연동 요구사항을 유지하며 인증 결정만 정합화. 이번 로컬 변경은 아직 GitHub에 반영되지 않았다. Approved Baseline v1.0은 Git 이력에 보존되며 정식 서비스 구현·Production 검증·배포는 아직 완료되지 않음.**

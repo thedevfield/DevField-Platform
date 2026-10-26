@@ -43,10 +43,11 @@ DevField는 개발자가 기술을 이해하고, 선택의 근거를 설명하�
 
 | 문서 | 설명 | 상태 |
 |---|---|---|
-| [RepoQ MVP PRD v1.1 개정 초안](docs/products/repoq/PRD.md) | 승인된 v1.0 기준선에 이메일 가입·회원 탈퇴 연동을 반영한 제품 요구사항 | **개정 초안 · 구현 전** |
-| [RepoQ 서비스 경계 설계서](docs/architecture/repoq-service-boundaries.md) | Project/Interview 책임과 데이터 소유권 | **상위 설계 승인** |
+| [RepoQ MVP PRD v1.1 개정 초안 + ADR-002 인증 개정안](docs/products/repoq/PRD.md) | 기존 요구사항과 승인된 인증 아키텍처 반영 | **로컬 개정안 · 구현 전** |
+| [RepoQ 서비스 경계 설계서](docs/architecture/repoq-service-boundaries.md) | Auth/Project/Interview 책임과 데이터 소유권 | **상위 설계 승인 · 인증 로컬 개정안** |
 | [ADR-001](docs/adr/0001-repoq-service-decomposition.md) | RepoQ 서비스 분리 결정 | **Accepted** |
-| [RepoQ 통합 API 명세서 v0.2](docs/contracts/repoq/api-spec.md) | 사용자용·서비스 간 계약 및 회원 탈퇴 연동 | **통합 검토 초안** |
+| [ADR-002](docs/adr/0002-devfield-common-authentication.md) | DevField 공통 인증을 독립 Auth Service로 구성하는 결정 | **Accepted · 로컬 개정안** |
+| [RepoQ 통합 API 명세서 v0.2 + ADR-002 인증 개정안](docs/contracts/repoq/api-spec.md) | 기존 21개 계약과 Auth 소유·인증 경계 | **통합 검토 초안 · 로컬 개정안** |
 
 현재 저장소에 존재하는 문서 구조는 다음과 같습니다.
 
@@ -60,7 +61,8 @@ DevField-Platform/
     ├── architecture/
     │   └── repoq-service-boundaries.md
     ├── adr/
-    │   └── 0001-repoq-service-decomposition.md
+    │   ├── 0001-repoq-service-decomposition.md
+    │   └── 0002-devfield-common-authentication.md
     └── contracts/
         └── repoq/
             └── api-spec.md
@@ -78,7 +80,7 @@ DevField는 **MSA(Microservices Architecture)**와 **Multi-Repository** 운영�
 4. **Pragmatic Complexity** — 초기 MVP에 불필요한 인프라나 마이크로서비스를 도입하지 않습니다.
 5. **Traceability & Quality** — 요구사항, 설계 결정, 테스트 및 변경 이유를 추적할 수 있도록 관리합니다.
 
-제품별 저장소 안에 여러 독립 서비스가 공존할 수 있습니다. RepoQ의 **Project Service와 Interview Service 분리**는 ADR-001에서 승인했습니다. 인증 제품·기술 스택 및 인프라 제품은 아직 확정하지 않았습니다.
+제품별 저장소 안에 여러 독립 서비스가 공존할 수 있습니다. RepoQ의 **Project Service와 Interview Service 분리**는 ADR-001에서 승인했습니다. [ADR-002](docs/adr/0002-devfield-common-authentication.md)는 DevField 공통 인증을 **Spring Boot 4.x + Spring Security 7.x 기반 독립 Auth Service**로 구성하고, 사용자 API에 Auth 발급 **RS256 JWT**를 사용하기로 결정했습니다. Project/Interview는 공개키·JWKS로 JWT를 검증하고 각자 리소스 소유권을 확인합니다. Better Auth는 Production 인증으로 채택하지 않습니다. RepoQ의 나머지 기술 스택과 Production 인증 상세 계약은 미정입니다.
 
 ## Planned Repository Organization
 
@@ -89,15 +91,16 @@ GitHub Organization: [thedevfield](https://github.com/thedevfield)
 | [`.github`](https://github.com/thedevfield/.github) | Organization 프로필 | 생성됨 |
 | [`DevField-Platform`](https://github.com/thedevfield/DevField-Platform) | 공통 요구사항·아키텍처·계약 | **현재 저장소** |
 | `DevField-Web` | 통합 웹 프론트엔드 · Vercel | 생성 예정 |
+| `DevField-Auth` | DevField 공통 인증·User ID·로그인 수단·회원 탈퇴 조정 | **별도 Repository 생성 예정 · 이번 작업에서 생성하지 않음** |
 | `RepoQ` | RepoQ 애플리케이션 및 내부 서비스 | 생성 예정 |
 | `AlgoField` | 코딩테스트 제품 | 향후 |
 | `InfraField` | 인프라 훈련 제품 | 향후 |
 
 ## Current Status & Next Steps
 
-**현재 상태: RepoQ MVP PRD v1.0 승인 기준선을 바탕으로 v1.1 개정 초안을 작성했고, 서비스 경계·ADR-001은 승인됐습니다. 통합 API v0.2는 검토 초안이며 구현·배포 전입니다.**
+**현재 상태: RepoQ MVP PRD v1.0 승인 기준선을 바탕으로 v1.1 개정 초안을 작성했고, 서비스 경계·ADR-001 및 ADR-002는 승인됐습니다. 이 ADR-002 인증 개정안은 로컬 문서 작업이며 아직 GitHub에 반영되지 않았습니다. 통합 API v0.2는 검토 초안입니다. ADR-002의 Auth PoC 성과는 이전 보고 기준이며 이번 작업에서 원시 로그를 재검증하거나 테스트를 재실행하지 않았습니다. Auth·RepoQ 정식 서비스 구현과 Production 검증은 완료되지 않았습니다.**
 
-다음 단계에서는 통합 API의 세부 필드·인증 연동을 검토하고 기술 스택을 설계한 후 필요한 애플리케이션 저장소와 통합 개발 환경을 구성합니다. RepoQ 웹은 **Vercel Production 배포 및 실제 E2E 검증**을 MVP 완료 조건으로 계획하고 있습니다.
+다음 단계에서는 인증 상세 Endpoint, 토큰·세션·키 운영, 서비스 간 인증, 브라우저 호출 경계와 통합 API 세부 필드를 설계한 뒤 필요한 애플리케이션 저장소와 통합 개발 환경을 구성합니다. RepoQ 웹은 **Vercel Production 배포 및 실제 E2E 검증**을 MVP 완료 조건으로 계획하고 있습니다.
 
 > 이 저장소는 현재 문서 중심의 플랫폼 저장소이며, 별도의 실행 가능한 애플리케이션이나 배포 결과를 포함한다고 주장하지 않습니다.
 
