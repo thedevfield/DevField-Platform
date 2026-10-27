@@ -206,8 +206,8 @@ OAuth 로그인은 **제공자의 `(provider, provider_user_id)`**를 계정 식
 | 담당·메서드·경로 | Auth · `GET /login/oauth2/code/{provider}` (Spring Security OAuth2 Login) |
 | 목적·인증 | 제공자 인증 결과를 받아 로그인/연결 의도를 완료. 제공자 `code`·`state`가 필요하며 사용자 JWT는 필요 없음 |
 | 헤더·요청 | 제공자의 브라우저 Redirect. Query `code`, `state` 또는 오류; Auth가 저장한 의도와 일치해야 함 |
-| 응답·성공 | `303` Web의 **허용된 Callback Route**로 일회용 `handoff`만 전달. 이 단계에서는 로그인 세션 생성·소셜 연결을 확정하지 않으며 AUTH-13 교환 때 완료한다. JWT·제공자 코드·Secret을 Web URL에 전달하지 않음 |
-| 실패 | `400` 잘못된 Callback/`state`, `401` 제공자 인증 실패, `409` 이미 다른 User ID에 연결된 외부 계정, `410` 의도 만료·재사용, `503` 저장소 장애 |
+| 응답·성공 | `303` Web의 **허용된 Callback Route**로 일회용 `handoff`와 공개 흐름 식별자 `flowId`만 전달. 로컬 Web은 `#flowId=...&handoff=...` Fragment를 즉시 제거하고 같은 출처 POST로 교환한다. 이 단계에서는 로그인 세션 생성·소셜 연결을 확정하지 않으며 AUTH-13 교환 때 완료한다. JWT·제공자 코드·Secret을 Web URL에 전달하지 않음 |
+| 실패 | 제공자 취소·거부 또는 안전하게 처리할 수 없는 Callback 오류는 허용된 Web Callback에 `303`으로 이동하고 공개 `flowId`(확인 가능할 때)와 안전한 오류 코드만 Fragment로 전달한다. 직접 오류 응답은 `400` 잘못된 Callback/`state`, `401` 제공자 인증 실패, `409` 이미 다른 User ID에 연결된 외부 계정, `410` 의도 만료·재사용, `503` 저장소 장애 |
 | 검증·멱등·보안 | OAuth `state`와 제공자·로그인/연결 의도·저장된 결합 해시·기존 계정 문맥을 대조. Callback에는 Web 결합 Cookie가 없으므로 **원래 브라우저임을 여기서 단정하지 않는다**. 연결 시작 후 기존 세션이 로그아웃·만료·DELETING이면 거부하며 AUTH-13에서 재확인. 제공자 인증 코드는 서버에서만 교환. Callback 재생은 거부. Handoff는 짧은 일회용 증명이고 `Referrer-Policy: no-referrer`, Query 로그 마스킹, 즉시 깨끗한 URL로 Redirect 필요 |
 | 관련 요구·상태 | FR-ACC-001·003·005, NFR-SEC-004, AT-13·20·21 · **초안** |
 
@@ -260,10 +260,10 @@ sequenceDiagram
 |---|---|
 | 담당·메서드·경로 | Auth · `POST /internal/auth/oauth-intents` |
 | 목적·인증 | **최초/재로그인** 시작을 위한 의도 생성. Web BFF의 `ServiceCredential`만 허용. 기존 계정 **연결**은 이 API가 아니라 A-02 사용 |
-| 헤더·요청 예시 | JSON, BFF `ServiceCredential`; `{"provider":"google","browserBindingHash":"<hash>","returnRoute":"LOGIN_COMPLETE"}` |
+| 헤더·요청 예시 | JSON, BFF `ServiceCredential`; `{"provider":"google","browserBindingHash":"<hash>","returnRoute":"LOGIN_COMPLETE","flowId":"<public-random-flow-id>"}` |
 | 응답·성공 | `201 {"authorizationUrl":"<Auth AUTH-09 URL>"}`; 임의 외부 URL 반환 금지 |
 | 실패 | `400` 미허용 제공자·복귀 경로, `401/403` BFF 인증 실패, `429` 제한, `503` 저장소 장애 |
-| 검증·멱등·보안 | BFF는 원시 결합 난수를 별도 HttpOnly 임시 Cookie에 보관하고 **해시만** 보낸다. Auth는 목적·제공자·만료·허용 복귀 경로를 저장하고 AUTH-09의 OAuth `state`와 연결. 재호출은 새 의도를 만들며 이전 의도를 자동 성공 처리하지 않음 |
+| 검증·멱등·보안 | BFF는 흐름마다 별도 HttpOnly 임시 Cookie에 원시 결합 난수를 보관하고 **해시만** 보낸다. `flowId`는 Cookie 선택용 공개 식별자이며 인증 증명이 아니다. Auth는 목적·제공자·flowId·만료·허용 복귀 경로를 저장하고 AUTH-09의 OAuth `state`와 연결. 재호출은 새 의도를 만들며 이전 의도를 자동 성공 처리하지 않음 |
 | 관련 요구·상태 | FR-ACC-001·003, NFR-SEC-004 · **초안**, 인계 유효기간 **보류** |
 
 ### AUTH-13 — 일회용 Web 인계 증명 교환 (BFF 전용)
@@ -272,7 +272,7 @@ sequenceDiagram
 |---|---|
 | 담당·메서드·경로 | Auth · `POST /internal/auth/oauth-handoffs/exchange` |
 | 목적·인증 | Callback의 `handoff`를 **원래 브라우저 BFF 세션**에서만 교환. BFF `ServiceCredential` 필요 |
-| 헤더·요청 예시 | JSON, BFF `ServiceCredential`; `{"handoff":"<one-time-proof>","browserBinding":"<original-random>"}`. **연결 의도라면** BFF가 현재 Web Cookie의 기존 `SessionHandle`도 서버 측 전달 |
+| 헤더·요청 예시 | JSON, BFF `ServiceCredential`; `{"handoff":"<one-time-proof>","browserBinding":"<original-random>","flowId":"<public-random-flow-id>"}`. **연결 의도라면** BFF가 현재 Web Cookie의 기존 `SessionHandle`도 서버 측 전달 |
 | 응답·성공 | 로그인 `200 {"sessionHandle":"<opaque-server-only>","userId":"<uuid>","returnRoute":"LOGIN_COMPLETE"}`; 연결 `200 {"userId":"<same-uuid>","returnRoute":"LINK_COMPLETE"}`. 로그인 때만 새 핸들을 Web Cookie에 설정하고 깨끗한 허용 경로로 Redirect |
 | 실패 | `400` 형식/브라우저 결합 불일치, `401/403` BFF 인증 실패, `410` 만료·재사용, `503` 저장소 장애 |
 | 검증·멱등·보안 | Auth가 handoff 해시·결합 해시·목적·만료·소모 상태를 **원자적으로** 확인한다. 로그인은 이때 제공자 ID로 기존 User를 찾거나 새 User·SocialIdentity를 만들고 AuthSession을 발급한다. 연결은 시작 User ID와 **같은 활성 기존 세션**을 다시 확인한 뒤 제공자 ID의 소유 충돌을 검사하고 SocialIdentity를 삽입한다. 다른 User ID의 수단을 이전하지 않는다. 탈취한 증명만으로 다른 브라우저에서 교환 불가. 반복 교환 거부. Callback Query와 요청 본문·Cookie·로그·분석 도구에 원문이 남지 않게 마스킹 |

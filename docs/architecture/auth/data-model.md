@@ -164,6 +164,7 @@ AUTH-01은 `user_id=NULL`, `verified_at=NULL` 예약과 ACTION_TOKEN(VERIFY_SIGN
 | `token_hash` | `text NOT NULL` | UNIQUE. 확인/재설정/의도 참조/handoff 증명 **원문을 저장하지 않음** |
 | `oauth_state_hash` | `text NULL` | OAuth 의도의 제공자 Callback `state` 검증용. OAuth 의도에만 UNIQUE(값이 존재할 때) |
 | `browser_binding_hash` | `text NULL` | OAuth 의도·handoff를 시작 브라우저에 결합 |
+| `flow_id` | `text NULL` | OAuth 의도·handoff의 공개 흐름 식별자. Web이 다중 탭의 독립 HttpOnly 결합 Cookie를 선택하는 데 사용하며 단독 인증 증명은 아님 |
 | `provider`, `provider_user_id`, `return_route` | `text NULL` | OAuth 흐름 전용. 제공자 allowlist·복귀 Route 키 allowlist. Callback의 안정적 제공자 ID를 인계 완료 전까지 임시 보관하고 완료·만료 때 제거 |
 | `started_at` | `timestamptz NULL` | OAuth 의도 AUTH-09의 첫 사용 시각. 같은 의도의 승인 시작 재사용 금지 |
 | `expires_at` | `timestamptz NOT NULL` | 목적별 만료. 실제 수명 미정 |
