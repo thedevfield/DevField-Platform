@@ -51,11 +51,11 @@ Auth는 Java 21, Spring Boot 4.x, Spring Security 7.x의 OAuth2 Login·Resource 
 |---|---|
 | 담당·경로·목적 | Auth · `POST /api/account/social-links/{provider}` · 로그인 수단 **명시적 연결 시작** |
 | 인증·헤더 | BFF `ServiceCredential` + ACTIVE `SessionHandle` + 최근 본인 확인 + Web Origin/CSRF 증명 |
-| 요청 | `provider=google|github|kakao`; BFF가 만든 브라우저 결합 난수의 해시와 허용된 Return Route 키를 서버 측 전달. 임의 User ID 불가 |
-| 응답 예시 | `200 {"authorizationUrl":"<Auth의 허용된 승인 시작 URL>"}`; URL에는 JWT·세션 핸들 없음 |
+| 요청 | `provider=google|github|kakao`; `{"browserBindingHash":"<SHA-256>","flowId":"<public-id>","reauthProof":"<one-time-proof>"}`. 임의 User ID 불가 |
+| 응답 예시 | `201 {"authorizationUrl":"<Auth의 허용된 승인 시작 URL>"}`; URL에는 JWT·세션 핸들 없음 |
 | 실패 | `400` 입력/복귀 경로, `401` 세션, `403` DELETING·재확인 부족, `404` 미지원 제공자, `409` 이미 연결된 수단, `429` 제한 |
 | 검증·재시도 | Auth가 세션 User ID·**시작 세션 ID**·연결 의도·제공자·OAuth `state`·브라우저 결합 해시를 일회용 흐름에 묶는다. 중복 시작은 별개 흐름이며 완료 전 연결된 것으로 표시하지 않는다 |
-| 관련 요구·확정 | FR-ACC-003·005, AT-20·21 · 기존 A-02 의미 **확정**, 본인 재확인 방법 **보류** |
+| 관련 요구·확정 | FR-ACC-003·005, AT-20·21 · 기존 A-02 의미 **확정**, 아래 본인 재확인 절차 적용 |
 
 ### A-03 — 소셜 수단 연결 해제
 
@@ -63,10 +63,18 @@ Auth는 Java 21, Spring Boot 4.x, Spring Security 7.x의 OAuth2 Login·Resource 
 |---|---|
 | 담당·경로·목적 | Auth · `DELETE /api/account/social-links/{provider}` · 본인 수단 연결 해제 |
 | 인증·헤더 | BFF `ServiceCredential` + ACTIVE `SessionHandle` + 최근 본인 확인 + Web Origin/CSRF 증명 |
-| 요청·응답 | Path `provider`; Body 없음 → `204` 본인 연결 해제 완료 |
+| 요청·응답 | Path `provider`; `{"reauthProof":"<one-time-proof>"}` → `204` 본인 연결 해제 완료 |
 | 실패 | `401` 세션, `403` DELETING·재확인 부족, `409` 마지막 사용 가능한 로그인 수단 |
-| 검증·재시도 | 본인에게 해당 제공자 연결이 없으면 `204`로 아무것도 변경하지 않는다. 연결이 있으면 해당 User ID의 **사용 가능한** 이메일·소셜 수단을 한 트랜잭션에서 잠금/재계산하고 해제한다. 반복 요청은 `204`이며 타인 연결을 건드리지 않는다 |
+| 검증·재시도 | 본인에게 해당 제공자 연결이 없으면 유효한 새 재확인 증명을 전제로 `204`로 아무것도 변경하지 않는다. 연결이 있으면 User 행을 잠근 뒤 **사용 가능한** 이메일·소셜 수단을 재계산한다. 마지막 수단은 `409`. 성공 시 현재 세션을 유지하고 다른 기존 세션을 폐기한다. 반복 요청에는 새 일회용 증명이 필요하다. 해제된 수단으로 기존 User ID에 재접근할 수 없다. 기존 Continue 가입 정책에 따라 같은 Provider로 신규 User ID가 생성될 수 있다. 타인 연결은 변경하지 않는다 |
 | 관련 요구·확정 | FR-ACC-006, AT-22 · 기존 A-03 의미 **확정** |
+
+### A-02/A-03 — 최근 본인 재확인
+
+이메일 로그인 수단이 있으면 `POST /api/account/reauth/password`로 현재 비밀번호를 검증한다. 소셜 전용 계정은 `POST /api/account/reauth/social/{provider}`로 이미 연결된 Provider의 별도 OAuth 흐름을 시작하고 같은 고유 ID를 확인한다. 두 방식 모두 현재 User ID와 AuthSession ID에 묶인 일회용 `reauthProof`를 발급한다. 유효기간은 최대 5분이며 A-02/A-03에 한 번만 사용한다. 로그아웃·세션 만료·DELETING에서는 사용할 수 없다.
+
+Google REAUTH는 기본 설정에서 공식 `auth_time`을 요청하고 5분 이내 인증 시각을 검증한다. 로컬 MVP에서만 서버 설정 `AUTH_GOOGLE_REAUTH_IDENTITY_ONLY_ENABLED=true`로 동일 계정 확인 모드를 명시적으로 활성화할 수 있다(기본값 `false`). 이 모드에서는 `auth_time` 필수 `claims`를 요청하지 않고, 새 OAuth 흐름에서 검증된 Google ID Token의 `sub`가 기존 User ID에 연결된 Google 고유 ID와 일치하는지 확인한다. 이는 Google 계정 접근 확인이며 비밀번호 재입력·MFA·최근 강한 인증의 보증이 아니다. Kakao는 `prompt=login`으로 별도 로그인을 요청하며 동일 고유 ID를 확인한다. GitHub는 새 OAuth 승인과 동일 고유 ID를 확인하지만 비밀번호 재입력 보증은 없다. GitHub 소셜 전용 계정의 일반 계정 관리 허용은 사용자 최종 승인 전 보안 절충안이다. 강한 보증이 필요한 운영 기능과 유료화에는 별도 검토가 필요하며 Production 보증 완료로 표시하지 않는다.
+
+Google의 [Security Bundle 안내](https://developers.google.com/identity/siwg/security-bundle)에 따르면 `auth_time` 추가 제공에는 앱 게시·검증과 Session age claims 설정이 필요하다. Google은 Google 계정 재인증 요청 자체를 지원하지 않으므로 계정 선택을 강한 본인 재확인으로 간주하지 않는다. 기본 설정에서 `auth_time`이 없거나 5분 범위 밖이면 REAUTH는 실패한다. 승인된 로컬 MVP 모드에서도 ACTIVE 세션, 시작 User ID·AuthSession ID, OAuth state·nonce, 브라우저 결합, 5분 일회용 증명, Origin/CSRF·서비스 인증은 유지한다. 클라이언트 요청이나 `NEXT_PUBLIC` 설정으로 모드를 켤 수 없다. Production의 민감한 계정 변경에는 별도 강한 재확인 수단과 보안 검토가 필요하다. 실제 Google Provider E2E는 아직 별도 검증 대상이다.
 
 ### A-04 — 본인 회원 탈퇴 신청·진행 재확인
 
@@ -207,7 +215,7 @@ OAuth 로그인은 **제공자의 `(provider, provider_user_id)`**를 계정 식
 | 목적·인증 | 제공자 인증 결과를 받아 로그인/연결 의도를 완료. 제공자 `code`·`state`가 필요하며 사용자 JWT는 필요 없음 |
 | 헤더·요청 | 제공자의 브라우저 Redirect. Query `code`, `state` 또는 오류; Auth가 저장한 의도와 일치해야 함 |
 | 응답·성공 | `303` Web의 **허용된 Callback Route**로 일회용 `handoff`와 공개 흐름 식별자 `flowId`만 전달. 로컬 Web은 `#flowId=...&handoff=...` Fragment를 즉시 제거하고 같은 출처 POST로 교환한다. 이 단계에서는 로그인 세션 생성·소셜 연결을 확정하지 않으며 AUTH-13 교환 때 완료한다. JWT·제공자 코드·Secret을 Web URL에 전달하지 않음 |
-| 실패 | 제공자 취소·거부 또는 안전하게 처리할 수 없는 Callback 오류는 허용된 Web Callback에 `303`으로 이동하고 공개 `flowId`(확인 가능할 때)와 안전한 오류 코드만 Fragment로 전달한다. 직접 오류 응답은 `400` 잘못된 Callback/`state`, `401` 제공자 인증 실패, `409` 이미 다른 User ID에 연결된 외부 계정, `410` 의도 만료·재사용, `503` 저장소 장애 |
+| 실패 | 허용된 Web Callback에 `303`으로 이동하며 Fragment의 `error`는 `oauth_cancelled`(제공자 `access_denied`; 사용자 취소와 정책 거부를 단독으로 구분할 수 없음), `oauth_provider_rejected`, `google_reauth_unavailable`(`auth_time` 부재), `google_reauth_stale`, `oauth_state_invalid`, `oauth_identity_failed`, `oauth_callback_failed` 중 하나다. 오류별 임의 참조 ID `ref`를 함께 보내고 Auth는 참조 ID와 안전한 코드만 기록한다. `flowId`·목적은 기존 의도를 확인한 경우에만 전달한다. Provider 코드·Token·state·원시 증명·다른 회원 정보는 전달하거나 기록하지 않는다. 다른 회원 수단의 `409`는 AUTH-13 교환에서 별도로 반환한다 |
 | 검증·멱등·보안 | OAuth `state`와 제공자·로그인/연결 의도·저장된 결합 해시·기존 계정 문맥을 대조. Callback에는 Web 결합 Cookie가 없으므로 **원래 브라우저임을 여기서 단정하지 않는다**. 연결 시작 후 기존 세션이 로그아웃·만료·DELETING이면 거부하며 AUTH-13에서 재확인. 제공자 인증 코드는 서버에서만 교환. Callback 재생은 거부. Handoff는 짧은 일회용 증명이고 `Referrer-Policy: no-referrer`, Query 로그 마스킹, 즉시 깨끗한 URL로 Redirect 필요 |
 | 관련 요구·상태 | FR-ACC-001·003·005, NFR-SEC-004, AT-13·20·21 · **초안** |
 
@@ -259,8 +267,8 @@ sequenceDiagram
 | 항목 | 계약 |
 |---|---|
 | 담당·메서드·경로 | Auth · `POST /internal/auth/oauth-intents` |
-| 목적·인증 | **최초/재로그인** 시작을 위한 의도 생성. Web BFF의 `ServiceCredential`만 허용. 기존 계정 **연결**은 이 API가 아니라 A-02 사용 |
-| 헤더·요청 예시 | JSON, BFF `ServiceCredential`; `{"provider":"google","browserBindingHash":"<hash>","returnRoute":"LOGIN_COMPLETE","flowId":"<public-random-flow-id>"}` |
+| 목적·인증 | **LOGIN 또는 SIGNUP** 시작을 위한 의도 생성. Web BFF의 `ServiceCredential`만 허용. 기존 계정 **연결**은 이 API가 아니라 A-02 사용 |
+| 헤더·요청 예시 | JSON, BFF `ServiceCredential`; `{"provider":"google","browserBindingHash":"<hash>","returnRoute":"LOGIN_COMPLETE|SIGNUP_COMPLETE","flowId":"<public-random-flow-id>"}`. Web은 화면 의도를 별도 HttpOnly 브라우저 결합 Cookie에 함께 고정 |
 | 응답·성공 | `201 {"authorizationUrl":"<Auth AUTH-09 URL>"}`; 임의 외부 URL 반환 금지 |
 | 실패 | `400` 미허용 제공자·복귀 경로, `401/403` BFF 인증 실패, `429` 제한, `503` 저장소 장애 |
 | 검증·멱등·보안 | BFF는 흐름마다 별도 HttpOnly 임시 Cookie에 원시 결합 난수를 보관하고 **해시만** 보낸다. `flowId`는 Cookie 선택용 공개 식별자이며 인증 증명이 아니다. Auth는 목적·제공자·flowId·만료·허용 복귀 경로를 저장하고 AUTH-09의 OAuth `state`와 연결. 재호출은 새 의도를 만들며 이전 의도를 자동 성공 처리하지 않음 |
@@ -272,11 +280,11 @@ sequenceDiagram
 |---|---|
 | 담당·메서드·경로 | Auth · `POST /internal/auth/oauth-handoffs/exchange` |
 | 목적·인증 | Callback의 `handoff`를 **원래 브라우저 BFF 세션**에서만 교환. BFF `ServiceCredential` 필요 |
-| 헤더·요청 예시 | JSON, BFF `ServiceCredential`; `{"handoff":"<one-time-proof>","browserBinding":"<original-random>","flowId":"<public-random-flow-id>"}`. **연결 의도라면** BFF가 현재 Web Cookie의 기존 `SessionHandle`도 서버 측 전달 |
-| 응답·성공 | 로그인 `200 {"sessionHandle":"<opaque-server-only>","userId":"<uuid>","returnRoute":"LOGIN_COMPLETE"}`; 연결 `200 {"userId":"<same-uuid>","returnRoute":"LINK_COMPLETE"}`. 로그인 때만 새 핸들을 Web Cookie에 설정하고 깨끗한 허용 경로로 Redirect |
+| 헤더·요청 예시 | JSON, BFF `ServiceCredential`; `{"handoff":"<one-time-proof>","browserBinding":"<original-random>","flowId":"<public-random-flow-id>","expectedPurpose":"LOGIN|SIGNUP|ACCOUNT"}`. **연결 의도라면** BFF가 현재 Web Cookie의 기존 `SessionHandle`도 서버 측 전달 |
+| 응답·성공 | 기존 회원 LOGIN `200 {"sessionHandle":"<opaque-server-only>","userId":"<uuid>","returnRoute":"LOGIN_COMPLETE","outcome":"LOGGED_IN"}`; 신규 회원 SIGNUP은 `SIGNED_UP` 및 새 핸들; 미가입 LOGIN은 `SIGNUP_REQUIRED`, 기존 회원 SIGNUP은 `EXISTING_ACCOUNT`와 함께 `sessionHandle/userId`가 모두 NULL. 연결은 `LINKED`, 재확인은 `REAUTHENTICATED` 및 `reauthProof`를 반환. Web은 실제 인증 성공에만 세션 Cookie를 설정 |
 | 실패 | `400` 형식/브라우저 결합 불일치, `401/403` BFF 인증 실패, `410` 만료·재사용, `503` 저장소 장애 |
-| 검증·멱등·보안 | Auth가 handoff 해시·결합 해시·목적·만료·소모 상태를 **원자적으로** 확인한다. 로그인은 이때 제공자 ID로 기존 User를 찾거나 새 User·SocialIdentity를 만들고 AuthSession을 발급한다. 연결은 시작 User ID와 **같은 활성 기존 세션**을 다시 확인한 뒤 제공자 ID의 소유 충돌을 검사하고 SocialIdentity를 삽입한다. 다른 User ID의 수단을 이전하지 않는다. 탈취한 증명만으로 다른 브라우저에서 교환 불가. 반복 교환 거부. Callback Query와 요청 본문·Cookie·로그·분석 도구에 원문이 남지 않게 마스킹 |
-| 관련 요구·상태 | FR-ACC-001·005, NFR-SEC-004 · **초안**, 정확한 Return Route 목록 **보류** |
+| 검증·멱등·보안 | Auth가 handoff 해시·결합 해시·목적·만료·소모 상태를 **원자적으로** 확인한다. Provider 고유 ID를 검증한 뒤 LOGIN은 기존 User에게만 세션을 발급하고 SIGNUP은 미가입 고유 ID에만 User·SocialIdentity·세션을 생성한다. 이메일 일치로 병합하지 않는다. 연결은 시작 User ID와 **같은 활성 기존 세션**을 다시 확인한 뒤 제공자 ID의 소유 충돌을 검사하고 SocialIdentity를 삽입한다. 다른 User ID의 수단을 이전하지 않는다. 탈취한 증명만으로 다른 브라우저에서 교환 불가. 반복 교환 거부. Callback Query와 요청 본문·Cookie·로그·분석 도구에 원문이 남지 않게 마스킹 |
+| 관련 요구·상태 | FR-ACC-001·005, NFR-SEC-004 · `LOGIN_COMPLETE`·`SIGNUP_COMPLETE`·`LINK_COMPLETE`·`REAUTH_COMPLETE` 목적별 고정 복귀 경로 적용 |
 
 ### AUTH-14 — ACTIVE Web 세션용 사용자 JWT 발급 (BFF 전용)
 
@@ -343,6 +351,6 @@ Auth는 먼저 `DELETING`을 영속 기록하고 X-03·X-04를 재시도 가능�
 | `/api/auth/poc/deleting`, `/api/poc/me` | PoC 전용. A-04/X-03/X-04 또는 Project/Interview 구현으로 간주하지 않음 |
 | 단일 프로세스의 로컬 공개키와 DB 세션 조회 | 별도 Resource Server의 JWKS·AUTH-15·X 호출 인증 및 키 운영 필요 |
 
-**미확정:** 실제 운영 도메인·issuer·audience, Cookie SameSite/수명, JWT·세션·증명 수명과 재발급 빈도, CSRF 증명 구체 형식, OAuth Return Route 목록, 최근 본인 확인 방법, **DELETING 중 세션을 잃은 사용자의 진행 확인/복구 방법**, 서비스 자격증명 형식·교체, 키 저장·회전·JWKS 캐시, 메일 공급·남용 제한 수치, PostgreSQL 마이그레이션·호스팅. 이 문서의 제안 경로·상태 코드는 구현 전 계약 검토 대상이며, 확정된 ADR 결정을 확장해 범용 Provider를 만들지 않는다.
+**미확정:** GitHub 소셜 전용 계정의 낮은 재확인 보증 수준에 대한 사용자 승인, 실제 운영 도메인·issuer·audience, Cookie SameSite/수명, JWT·세션 수명과 재발급 빈도, **DELETING 중 세션을 잃은 사용자의 진행 확인/복구 방법**, 서비스 자격증명 형식·교체, 키 저장·회전·JWKS 캐시, 메일 공급·남용 제한 수치, PostgreSQL 호스팅. 확정된 ADR 결정을 확장해 범용 Provider를 만들지 않는다.
 
 **수용 기준:** 이메일·세 소셜의 실제 가입/재로그인, 명시적 연결·해제·충돌·Kakao 이메일 없음, BFF 브라우저 결합/인계 재생 공격, JWT 위조·만료·잘못된 `aud`·키 교체, 로그아웃·DELETING·Auth 장애, X-01의 이중 인증과 X-02~04 멱등 삭제·타 사용자 보존을 통합 테스트한다. Production HTTPS·Preview 분리·CSRF·Cookie·전체 E2E가 통과하기 전 구현 완료로 표시하지 않는다. PoC의 이전 PASS 기록은 이 수용 기준의 통과 증거가 아니다.

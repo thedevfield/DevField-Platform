@@ -160,7 +160,7 @@ AUTH-01은 `user_id=NULL`, `verified_at=NULL` 예약과 ACTION_TOKEN(VERIFY_SIGN
 | `user_id` | `uuid NULL` | Auth 내부 User FK. **이메일 확인 전 가입·OAuth 로그인 의도와 로그인용 인계에는 NULL 허용** |
 | `email_credential_id` | `uuid NULL` | Auth 내부 EmailCredential FK. 신규 가입·이메일 추가 확인에 사용 |
 | `session_id` | `uuid NULL` | Auth 내부 AuthSession FK. `OAUTH_INTENT_LINK`와 연결용 `WEB_HANDOFF`에서는 연결 시작 당시의 기존 세션. 로그인용 인계에서는 NULL |
-| `purpose` | `text NOT NULL` | CHECK: `VERIFY_SIGNUP`, `VERIFY_ADD_EMAIL`, `RESET_PASSWORD`, `OAUTH_INTENT_LOGIN`, `OAUTH_INTENT_LINK`, `WEB_HANDOFF` |
+| `purpose` | `text NOT NULL` | V6 CHECK: `VERIFY_SIGNUP`, `ACCOUNT_REAUTH`, `OAUTH_INTENT_LOGIN`, `OAUTH_INTENT_SIGNUP`, `OAUTH_INTENT_LINK`, `OAUTH_INTENT_REAUTH`, `WEB_HANDOFF`. `VERIFY_ADD_EMAIL`과 `RESET_PASSWORD`는 후속 구현 대상 |
 | `token_hash` | `text NOT NULL` | UNIQUE. 확인/재설정/의도 참조/handoff 증명 **원문을 저장하지 않음** |
 | `oauth_state_hash` | `text NULL` | OAuth 의도의 제공자 Callback `state` 검증용. OAuth 의도에만 UNIQUE(값이 존재할 때) |
 | `browser_binding_hash` | `text NULL` | OAuth 의도·handoff를 시작 브라우저에 결합 |
@@ -222,3 +222,9 @@ Auth DB에는 Project·Interview 테이블을 두지 않는다. Interview가 Pro
 **미확정:** Access JWT·AuthSession·ActionToken·Web Cookie 수명과 재발급 빈도, OAuth 의도·handoff 만료, JWKS 캐시·키 회전 주기, 운영 issuer·audience·도메인/호스팅, 이메일 정규화의 정확한 규칙과 예약 만료, 비밀번호 변경 시 세션 폐기 범위, 서비스 자격 증명 형식·교체, 데이터·Tombstone·백업 보관 기간, 실제 DDL·마이그레이션 명명 규칙. PostgreSQL 외 새 DB·Redis·Kafka·Gateway를 이 설계의 선행 구성으로 추가하지 않는다.
 
 **구현 수용 기준:** 목적별 ActionToken FK/CHECK와 동시 소모, 이메일 예약 경합·만료, 동일 외부 제공자 재로그인, 동일 이메일 자동 병합·타 User ID 이전 방지, 마지막 로그인 수단 해제 거부, Kakao 이메일 NULL, AuthSession 폐기·DELETING 제한, AccountDeletion FK·두 서비스 완료·재시도·늦은 쓰기, 타 사용자 보존을 DB 제약 및 서비스 통합 테스트로 확인한다. 실제 제공자·Preview/Production E2E 전에는 구현 완료로 표시하지 않는다.
+
+**V5 계정 관리:** 기존 V1~V4를 변경하지 않고 ActionToken에 `ACCOUNT_REAUTH`, `OAUTH_INTENT_REAUTH` 및 LINK 목적의 CHECK 조합을 추가한다. LOGIN 의도·인계는 User/Session이 NULL이고 LINK·REAUTH는 시작 User/Session이 필수다. 목적별 Return Route를 고정하고 OAuth state·브라우저 결합·만료·일회성 소모를 유지한다. 재확인 증명은 User와 AuthSession에 결합하며 최대 5분이다. 연결 해제는 User 행을 잠그고 사용 가능한 수단을 재계산한다. 성공 시 현재 세션만 유지한다. 만료·소모된 재확인 증명 정리 배치는 운영 시 추가 검토한다.
+
+**V6 소셜 가입 의도 분리:** 기존 V1~V5를 변경하지 않고 `OAUTH_INTENT_SIGNUP`과 `SIGNUP_COMPLETE`를 CHECK에 추가한다. LOGIN·SIGNUP 의도와 handoff는 모두 시작 User/Session이 NULL이다. Provider 고유 ID 확인 후 LOGIN은 기존 회원에게만 세션을 발급하고 SIGNUP은 미가입 고유 ID에만 User와 SocialIdentity를 생성한다. 반대 경우에는 User ID·세션 핸들 없이 안내 결과만 반환한다. LINK·REAUTH는 기존 User/Session 결합을 계속 요구한다.
+
+**로컬 MVP Google 계정 확인:** `AUTH_GOOGLE_REAUTH_IDENTITY_ONLY_ENABLED`는 기본 `false`다. `true`일 때 Google REAUTH의 검증된 ID Token `sub`와 기존 SocialIdentity 고유 ID를 대조하며 `auth_time`을 요구하지 않는다. ActionToken 구조·5분 일회용 `ACCOUNT_REAUTH` 증명·시작 User/Session·브라우저 결합·상태 제약은 동일하다. 이 증명은 Google 비밀번호·MFA 재수행을 보증하지 않으므로 Production의 강한 재확인으로 해석하지 않는다.
