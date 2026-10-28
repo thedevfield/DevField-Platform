@@ -81,3 +81,15 @@ PoC 통과는 Production 인증 또는 RepoQ MVP 완료를 의미하지 않는�
 - [ ] 토큰 폐기·상태 전파, 실제 제공자 콜백, 키 운영과 Production HTTPS·브라우저 경계에 대한 계약 및 통합 E2E를 검증한다.
 
 위 체크리스트는 **향후 구현 수용 기준**이며 현재 통과로 표시하지 않는다.
+
+### 공통 계정 관리 보안 결정 보완 (2026-10-28)
+
+A-02/A-03은 활성 세션만으로 실행하지 않는다. 이메일 수단은 현재 비밀번호를 검증하고, 소셜 전용 계정은 이미 연결된 Provider의 별도 OAuth 승인과 같은 고유 ID를 확인한다. 재확인 증명은 User ID와 AuthSession ID에 결합하며 최대 5분 동안 변경 작업에 한 번만 사용한다. 로그인·연결·재확인 의도는 구분한다.
+
+GitHub OAuth 재승인은 비밀번호 재입력을 보장하지 않는다. GitHub 소셜 전용 계정의 일반 계정 관리 허용은 사용자 최종 승인 전 보안 절충안이다. 강한 보증이 필요한 운영 기능과 유료화 이전에는 재검토하며 Production 보증 완료로 표시하지 않는다.
+
+### LOGIN/SIGNUP 의도 분리 보완 (2026-10-29)
+
+OAuth 시작·state·handoff 목적을 LOGIN, SIGNUP, LINK, REAUTH로 구분한다. 제공자가 검증한 고유 ID로만 가입 여부를 판정한다. LOGIN은 기존 회원에게만 새 세션을 발급하며 미가입 계정은 회원가입을 안내한다. SIGNUP은 미가입 고유 ID에만 새 User와 세션을 생성하며 기존 회원은 자동 로그인 없이 로그인 화면으로 안내한다. LINK와 REAUTH는 시작 User ID·AuthSession에 묶이고 기존 세션을 유지한다. Google REAUTH의 기본 모드는 OIDC `claims`로 `auth_time`을 요구하며, 응답 ID Token에서 실제 인증 시각을 확인한다. 실제 Provider E2E가 수행되기 전 Google 400 해결을 운영 검증 완료로 표시하지 않는다.
+
+2026-10-29 사용자 승인: **로컬 MVP에 한해** `AUTH_GOOGLE_REAUTH_IDENTITY_ONLY_ENABLED=true`를 설정하면 Google REAUTH는 `auth_time` 요구 없이 새 OAuth 결과의 검증된 Google `sub`와 기존 연결 ID를 비교한다. 설정 기본값은 `false`이며 클라이언트가 변경할 수 없다. 이 절충안은 동일 Google 계정 접근 확인이며 비밀번호 재입력·MFA·최근 강한 인증을 보증하지 않는다. GitHub·Kakao 정책과 LINK/REAUTH 목적, 시작 User ID·AuthSession ID, state·nonce·브라우저 결합, 5분 일회용 증명은 유지한다. 유료화 및 Production의 민감한 계정 변경 전 별도 강한 재확인 수단과 보안 검토가 필요하다. 실제 Provider E2E를 운영 검증 완료로 표시하지 않는다.
