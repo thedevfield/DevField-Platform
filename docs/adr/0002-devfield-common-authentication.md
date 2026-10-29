@@ -93,3 +93,8 @@ GitHub OAuth 재승인은 비밀번호 재입력을 보장하지 않는다. GitH
 OAuth 시작·state·handoff 목적을 LOGIN, SIGNUP, LINK, REAUTH로 구분한다. 제공자가 검증한 고유 ID로만 가입 여부를 판정한다. LOGIN은 기존 회원에게만 새 세션을 발급하며 미가입 계정은 회원가입을 안내한다. SIGNUP은 미가입 고유 ID에만 새 User와 세션을 생성하며 기존 회원은 자동 로그인 없이 로그인 화면으로 안내한다. LINK와 REAUTH는 시작 User ID·AuthSession에 묶이고 기존 세션을 유지한다. Google REAUTH의 기본 모드는 OIDC `claims`로 `auth_time`을 요구하며, 응답 ID Token에서 실제 인증 시각을 확인한다. 실제 Provider E2E가 수행되기 전 Google 400 해결을 운영 검증 완료로 표시하지 않는다.
 
 2026-10-29 사용자 승인: **로컬 MVP에 한해** `AUTH_GOOGLE_REAUTH_IDENTITY_ONLY_ENABLED=true`를 설정하면 Google REAUTH는 `auth_time` 요구 없이 새 OAuth 결과의 검증된 Google `sub`와 기존 연결 ID를 비교한다. 설정 기본값은 `false`이며 클라이언트가 변경할 수 없다. 이 절충안은 동일 Google 계정 접근 확인이며 비밀번호 재입력·MFA·최근 강한 인증을 보증하지 않는다. GitHub·Kakao 정책과 LINK/REAUTH 목적, 시작 User ID·AuthSession ID, state·nonce·브라우저 결합, 5분 일회용 증명은 유지한다. 유료화 및 Production의 민감한 계정 변경 전 별도 강한 재확인 수단과 보안 검토가 필요하다. 실제 Provider E2E를 운영 검증 완료로 표시하지 않는다.
+## 이메일 수단과 Provider 계정 선택 후속 결정 (2026-10-29)
+
+기존 User ID와 Auth 소유 EmailCredential·ActionToken·AuthSession을 재사용한다. 소셜 계정에 이메일을 추가할 때 최근 본인 확인 증명을 소모해 예약을 시작하고, 요청 세션에 묶인 메일 링크로 주소 소유권을 확인한 뒤 비밀번호를 최초 설정한다. 다른 User ID의 이메일 또는 Provider 고유 ID를 자동 병합·이전하지 않는다. 비밀번호 변경은 현재 세션만 유지하고, 분실 재설정은 모든 세션을 폐기한다. 마지막으로 사용 가능한 로그인 수단 해제는 계속 거부한다.
+
+LOGIN·SIGNUP·LINK·REAUTH는 별개 OAuth 의도로 유지한다. Google과 GitHub에는 공식 `prompt=select_account`를 요청하고 Kakao에는 로그인 화면 재진입을 위한 `prompt=login`을 요청한다. Provider 화면·브라우저 세션에 따른 실제 선택 기회는 Provider가 결정하며, 계정 선택 자체는 강한 본인 재인증의 근거가 아니다. Google의 엄격한 REAUTH는 기존 `auth_time` 검증 정책을 유지한다.

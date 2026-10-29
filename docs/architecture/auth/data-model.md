@@ -114,7 +114,7 @@ PK 외 유일성은 필요하지 않다. `(state, updated_at)`은 탈퇴 운영 
 | `id` | `uuid NOT NULL` | PK. User ID가 없는 가입 예약도 식별 |
 | `user_id` | `uuid NULL` | Auth 내부 `DevFieldUser(id)` FK + UNIQUE. 가입 확인 전 NULL; 소셜 계정에 추가할 때는 기존 ID |
 | `normalized_email` | `text NOT NULL` | UNIQUE. 이메일 로그인 수단의 예약·활성 식별자 |
-| `password_hash` | `text NOT NULL` | 안전한 비밀번호 해시. 원문 저장 금지 |
+| `password_hash` | `text NULL` | 안전한 비밀번호 해시. 소셜 회원의 이메일 소유권 확인 후 최초 설정 전에는 NULL; 원문 저장 금지 |
 | `verified_at` | `timestamptz NULL` | NULL이면 이메일 로그인 불가 |
 | `pending_display_name` | `text NULL` | 신규 가입 확인 전만 사용, 확인·만료 때 제거 |
 | `reservation_expires_at` | `timestamptz NULL` | 미확인 이메일 예약의 만료 판단 |
@@ -122,7 +122,7 @@ PK 외 유일성은 필요하지 않다. `(state, updated_at)`은 탈퇴 운영 
 
 이메일 비교용 정규화는 **승인된 보수적 규칙**으로 구현한다. 기본적인 공백·도메인 표준화와 일관된 대소문자 정책을 정하되, Gmail의 점·플러스 별칭 등 공급자별 주소가 같다고 임의 판정하지 않는다. 정확한 정규화 규칙은 구현 전 테스트와 함께 승인한다. `normalized_email` 유일성은 확인 대기 예약에도 적용하고, 만료된 예약은 확인 토큰과 함께 안전하게 정리해 주소를 영구 점유하지 않게 한다. 같은 이메일의 소셜 `provider_email`은 이 제약에 참여하지 않는다.
 
-AUTH-01은 `user_id=NULL`, `verified_at=NULL` 예약과 ACTION_TOKEN(VERIFY_SIGNUP)을 생성한다. AUTH-02는 만료·소모·예약 유일성을 확인하고 User 생성, Credential 연결 및 `verified_at` 기록을 **하나의 트랜잭션**으로 수행한다. AUTH-08은 기존 ACTIVE User ID에 미확인 Credential을 예약하고 AUTH-02 확인 시 활성화한다. 탈퇴 완료 시 Credential과 이메일은 삭제한다. 비밀번호 변경·재설정은 해시 교체와 세션 폐기 정책을 함께 적용한다.
+AUTH-01은 `user_id=NULL`, `verified_at=NULL` 예약과 ACTION_TOKEN(VERIFY_SIGNUP)을 생성한다. AUTH-02는 만료·소모·예약 유일성을 확인하고 User 생성, Credential 연결 및 `verified_at` 기록을 **하나의 트랜잭션**으로 수행한다. AUTH-08은 기존 ACTIVE User ID에 미확인 Credential을 예약하고 요청 세션에 묶인 별도 VERIFY_LINK로 소유권을 확인한다. 비밀번호 최초 설정 전에는 이메일 로그인이 활성화되지 않는다. 탈퇴 완료 시 Credential과 이메일은 삭제한다. 비밀번호 변경·재설정은 해시 교체와 세션 폐기 정책을 함께 적용한다.
 
 ### 3.3 SocialIdentity
 
@@ -160,7 +160,7 @@ AUTH-01은 `user_id=NULL`, `verified_at=NULL` 예약과 ACTION_TOKEN(VERIFY_SIGN
 | `user_id` | `uuid NULL` | Auth 내부 User FK. **이메일 확인 전 가입·OAuth 로그인 의도와 로그인용 인계에는 NULL 허용** |
 | `email_credential_id` | `uuid NULL` | Auth 내부 EmailCredential FK. 신규 가입·이메일 추가 확인에 사용 |
 | `session_id` | `uuid NULL` | Auth 내부 AuthSession FK. `OAUTH_INTENT_LINK`와 연결용 `WEB_HANDOFF`에서는 연결 시작 당시의 기존 세션. 로그인용 인계에서는 NULL |
-| `purpose` | `text NOT NULL` | V6 CHECK: `VERIFY_SIGNUP`, `ACCOUNT_REAUTH`, `OAUTH_INTENT_LOGIN`, `OAUTH_INTENT_SIGNUP`, `OAUTH_INTENT_LINK`, `OAUTH_INTENT_REAUTH`, `WEB_HANDOFF`. `VERIFY_ADD_EMAIL`과 `RESET_PASSWORD`는 후속 구현 대상 |
+| `purpose` | `text NOT NULL` | V7 CHECK: `VERIFY_SIGNUP`, `VERIFY_LINK`, `PASSWORD_RESET`, `ACCOUNT_REAUTH`, `OAUTH_INTENT_LOGIN`, `OAUTH_INTENT_SIGNUP`, `OAUTH_INTENT_LINK`, `OAUTH_INTENT_REAUTH`, `WEB_HANDOFF` |
 | `token_hash` | `text NOT NULL` | UNIQUE. 확인/재설정/의도 참조/handoff 증명 **원문을 저장하지 않음** |
 | `oauth_state_hash` | `text NULL` | OAuth 의도의 제공자 Callback `state` 검증용. OAuth 의도에만 UNIQUE(값이 존재할 때) |
 | `browser_binding_hash` | `text NULL` | OAuth 의도·handoff를 시작 브라우저에 결합 |
@@ -171,7 +171,7 @@ AUTH-01은 `user_id=NULL`, `verified_at=NULL` 예약과 ACTION_TOKEN(VERIFY_SIGN
 | `consumed_at` | `timestamptz NULL` | 일회용 사용 시각 |
 | `created_at` | `timestamptz NOT NULL` | 생성 시각 |
 
-`pending_email`은 **저장하지 않는 방향**이다. 신규 가입·소셜 계정에 이메일 수단 추가 시 `email_credential_id`가 예약된 이메일을 가리키므로 같은 개인정보를 두 곳에 복제할 이유가 없다. 필요성이 확인되면 별도 검토한다. 이 모델은 이메일 확인·비밀번호 재설정·OAuth 의도·Web 인계에 **한 테이블**을 사용하되 `purpose`별 필수 FK/문맥을 CHECK 제약으로 구분한다. 예: VERIFY_SIGNUP은 `email_credential_id NOT NULL`·`user_id NULL`, RESET_PASSWORD는 `user_id NOT NULL`, OAUTH_INTENT_LINK는 `user_id`·`session_id`·`provider`·`browser_binding_hash NOT NULL`이다. `WEB_HANDOFF`는 `provider`·`provider_user_id`·`browser_binding_hash`가 필수이고 로그인 의도라면 `user_id/session_id NULL`, 연결 의도라면 기존 `user_id/session_id NOT NULL`이다. 연결은 AUTH-13에서 저장한 세션 ID가 여전히 활성이고 같은 User ID에 속하는지 재확인한다.
+`pending_email`은 **저장하지 않는 방향**이다. 신규 가입·소셜 계정에 이메일 수단 추가 시 `email_credential_id`가 예약된 이메일을 가리키므로 같은 개인정보를 두 곳에 복제할 이유가 없다. 필요성이 확인되면 별도 검토한다. 이 모델은 이메일 확인·비밀번호 재설정·OAuth 의도·Web 인계에 **한 테이블**을 사용하되 `purpose`별 필수 FK/문맥을 CHECK 제약으로 구분한다. 예: VERIFY_LINK는 Credential·User·Session 필수, VERIFY_SIGNUP은 `email_credential_id NOT NULL`·`user_id NULL`, PASSWORD_RESET은 `user_id`·`email_credential_id NOT NULL`, OAUTH_INTENT_LINK는 `user_id`·`session_id`·`provider`·`browser_binding_hash NOT NULL`이다. `WEB_HANDOFF`는 `provider`·`provider_user_id`·`browser_binding_hash`가 필수이고 로그인 의도라면 `user_id/session_id NULL`, 연결 의도라면 기존 `user_id/session_id NOT NULL`이다. 연결은 AUTH-13에서 저장한 세션 ID가 여전히 활성이고 같은 User ID에 속하는지 재확인한다.
 
 고엔트로피 난수를 발급하고 해시만 비교한다. AUTH-12/A-02는 `token_hash`에 의도 참조의 해시를 저장하고, AUTH-09가 생성한 OAuth `state`는 같은 행의 `oauth_state_hash`로 결합한다. Callback은 `state` 해시로 의도를 찾고 제공자·저장된 결합 해시·연결 User ID를 대조하되, **Web 브라우저 결합은 AUTH-13에서 확인**한다. Callback은 제공자 ID를 보류 인계 행에 저장하며 계정·SocialIdentity·새 세션을 이 단계에서 확정하지 않는다. AUTH-13은 인계 증명과 원래 브라우저 결합을 원자적으로 확인하고 로그인이라면 User/SocialIdentity/Session을 생성하거나 기존 User에 세션을 만들며, 연결이라면 기존 세션·User와 제공자 ID 충돌을 다시 확인해 SocialIdentity를 삽입한다. 사용 시 `UPDATE ... WHERE consumed_at IS NULL AND expires_at > now() RETURNING ...`과 목적·연결 대상 검증을 하나의 트랜잭션으로 수행해 동시 사용 한 번만 성공시킨다. 이미 소모·만료된 토큰은 거부한다. OAuth의 Spring Authorization Request 상태는 Auth가 이 의도와 결합해 저장·조회해야 한다. Auth 인스턴스가 여러 개여도 맞는 상태를 찾을 수 있도록 **PostgreSQL 기반 Auth 소유 저장**을 v0.1 방향으로 삼고, 별도 Redis·BFF DB를 추가하지 않는다. 실제 Spring `AuthorizationRequestRepository` 연계와 목적별 CHECK DDL은 구현 전 검증한다. 만료·소모된 증명과 보류 제공자 ID는 정책에 따라 정리하며 원문·제공자 코드·JWT를 로그에 남기지 않는다.
 
@@ -228,3 +228,5 @@ Auth DB에는 Project·Interview 테이블을 두지 않는다. Interview가 Pro
 **V6 소셜 가입 의도 분리:** 기존 V1~V5를 변경하지 않고 `OAUTH_INTENT_SIGNUP`과 `SIGNUP_COMPLETE`를 CHECK에 추가한다. LOGIN·SIGNUP 의도와 handoff는 모두 시작 User/Session이 NULL이다. Provider 고유 ID 확인 후 LOGIN은 기존 회원에게만 세션을 발급하고 SIGNUP은 미가입 고유 ID에만 User와 SocialIdentity를 생성한다. 반대 경우에는 User ID·세션 핸들 없이 안내 결과만 반환한다. LINK·REAUTH는 기존 User/Session 결합을 계속 요구한다.
 
 **로컬 MVP Google 계정 확인:** `AUTH_GOOGLE_REAUTH_IDENTITY_ONLY_ENABLED`는 기본 `false`다. `true`일 때 Google REAUTH의 검증된 ID Token `sub`와 기존 SocialIdentity 고유 ID를 대조하며 `auth_time`을 요구하지 않는다. ActionToken 구조·5분 일회용 `ACCOUNT_REAUTH` 증명·시작 User/Session·브라우저 결합·상태 제약은 동일하다. 이 증명은 Google 비밀번호·MFA 재수행을 보증하지 않으므로 Production의 강한 재확인으로 해석하지 않는다.
+
+**V7 이메일 계정 관리:** 기존 V1~V6를 변경하지 않고 `EmailCredential.password_hash`를 최초 설정 전 NULL 허용으로 확장한다. `user_id`는 이메일 예약 시 기존 소셜 User ID를 가리키며 `verified_at`은 메일 링크 확인 전 NULL이다. `emailLoginEnabled`는 `verified_at`과 `password_hash`가 모두 있을 때만 true다. `VERIFY_LINK`는 예약 Credential·User·요청 세션에 묶고, `PASSWORD_RESET`은 검증된 Credential·User에 묶는다. 두 토큰 모두 해시 저장, 만료, 일회용 원자 소모를 적용한다. 비밀번호 변경·최초 설정은 현재 세션을 유지하고 다른 세션을 폐기하며, 재설정은 전체 세션을 폐기한다. OAuth LOGIN·SIGNUP·LINK·REAUTH의 기존 CHECK 조합과 브라우저 결합을 유지한다.
