@@ -273,8 +273,8 @@ RepoQ 화면은 **프로젝트 선택·분석 → 자유 연습 또는 모의면
 
 | ID | 메서드·경로 | 요청·성공·주요 실패 |
 |---|---|---|
-| P-07 | `POST /api/projects/{id}/repositories` | P-01과 같은 `repositories:[{repositoryUrl 또는 githubRepositoryId,consents?}]`로 여러 연결을 한 번에 추가한다. Private 동의를 요청에 함께 기록할 수 있다. `201` 연결 항목·새 구성 버전·QUEUED Job, 같은 `Idempotency-Key` 재시도는 동일 응답. 중복·구성 충돌 `409`, 무권한 Private `403`, 타인 Project `404`. |
-| P-08 | `DELETE /api/projects/{id}/repositories/{repositoryId}` | 본인 연결 제거 → `202` 정리 진행, 완료 `204`; 반복 요청 멱등. 마지막 활성 Repository 제거는 `409`와 P-06 삭제 안내로 0개 Project를 만들지 않는다. Private 근거가 있는 과거 통합 Snapshot·면접은 BR-32 삭제 계약을 우선 적용한다. |
+| P-07 | `POST /api/projects/{id}/repositories` | P-01과 같은 `repositories:[{repositoryUrl 또는 githubRepositoryId,consents?}]`로 여러 연결을 한 번에 추가한다. Private 동의를 요청에 함께 기록할 수 있다. 기존 Job이 `QUEUED`이면 `CANCELLED` 후 새 구성의 `QUEUED` Job을 생성하고, `RUNNING`이면 `409`, 종료 상태이면 새 `QUEUED` Job을 생성한다. 성공 시 `201` 연결 항목·새 구성 버전·QUEUED Job, 같은 `Idempotency-Key` 재시도는 동일 응답. 중복·구성 충돌 `409`, 무권한 Private `403`, 타인 Project `404`. |
+| P-08 | `DELETE /api/projects/{id}/repositories/{repositoryId}` | `{repositoryId}`는 P-03의 연결 항목 `id`다. 마지막 활성 Repository 제거는 `409`와 P-06 삭제 안내로 0개 Project를 만들지 않는다. A 단계의 일반 연결 제거에서 기존 Job이 `QUEUED`이면 `CANCELLED` 후 남은 구성의 새 `QUEUED` Job을 생성하고, `RUNNING`이면 `409`, 종료 상태이면 새 `QUEUED` Job을 생성한다. 정리 대상이 없는 Public 연결 제거 완료는 `204`; 반복 요청은 멱등이다. 향후 비동기 삭제가 필요한 Private 연결의 `202` 정리 진행 계약은 유지하며, Private 근거가 있는 과거 통합 Snapshot·면접은 BR-32 삭제 계약을 우선 적용한다. |
 | P-09 | `POST /api/github/connections/start` | 로그인 사용자·세션에 결합된 일회용 `state`와 PKCE를 만들고 `nextAction=AUTHORIZE_USER/INSTALL_APP` 및 해당 GitHub URL을 `200`으로 반환한다. 사용자 승인과 App 설치를 별도 상태로 추적한다. Public 사용에는 호출 불필요. |
 | P-10 | `GET /api/github/connections/callback` | **사용자 승인 callback**의 `code/state`는 state·PKCE·원 세션·사용자·만료·일회성을 검사한 뒤 서버에서 교환한다. **설치 후 setup redirect**의 `installation_id/setup_action`은 신뢰하지 않고 원 세션의 대기 작업과 사용자의 GitHub App token으로 설치·Repository 권한을 GitHub API에서 확인한다. 둘을 같은 논리 경로에서 분기하되 승인·설치 완료를 별도 기록한다. 성공 시 연결 상태로 리다이렉트 또는 `200`; 오류 원문·token은 브라우저 응답에 싣지 않는다. 실제 callback/setup URL·BFF 경유는 `[결정 필요]`. |
 | P-11 | `GET /api/github/repositories` | 연결·설치 승인 상태와 사용자/App 권한 교집합 내 선택 가능한 Repository의 ID·이름·visibility·접근 상태를 함께 `200`으로 반환한다(페이지네이션). 별도 연결 상태 조회 API는 두지 않는다. 다른 사용자 Private 목록 노출 금지. GitHub 장애/한도 `503`/`429`. |
@@ -282,6 +282,8 @@ RepoQ 화면은 **프로젝트 선택·분석 → 자유 연습 또는 모의면
 | P-13 | `DELETE /api/github/connections/{connectionId}` | 본인 연결 해제·토큰 폐기 요청 `202`, 반복 요청 멱등. 관련 Private 연결의 접근 장벽과 X-05를 먼저 적용한다. GitHub App 자체 제거는 GitHub에서 발생하며 Webhook으로 처리한다. |
 
 `P-01`·`P-07`의 Private ID는 P-11의 선택 결과를 그대로 신뢰하지 않고 저장 직전 사용자/App 권한·독립 동의·Repository ID를 다시 확인한다. Public도 GitHub 안정 Repository ID를 확인한다. `(owner_user_id,github_repository_id)` 활성 연결 UNIQUE와 트랜잭션으로 BR-31 경합을 막고 다른 사용자 Public 등록은 허용한다. `Idempotency-Key`는 P-01/P-05/P-07에 사용하며 사용자·경로·정규화된 본문과 결합해 재시도를 같은 결과로 처리한다. 같은 키의 다른 본문은 `409`, 보관기간은 `[결정 필요]`. DELETE는 반복 호출 자체가 멱등이다.
+
+P-07/P-08의 Job 취소·구성 버전 변경·새 Job 생성은 원자적 DB 트랜잭션으로 처리한다. P-05의 기존 활성 Job(`QUEUED`/`RUNNING`) `409` 정책은 유지한다. 일반 연결 제거의 A 단계 `RUNNING` Job `409`는 Private 권한·동의 철회에 적용하지 않는다. Private 철회 시 진행 중 Job으로 요청을 거부하지 않고 민감정보 접근을 즉시 차단한다. Worker 취소 확인, Snapshot 무효화, X-05 연동은 후속 구현 범위다.
 
 Private 생성·추가 시 `consents`를 요청에 포함하면 별도 P-12를 먼저 호출할 필요가 없다. 수집 동의 `GRANTED`가 없으면 Private 연결을 거부한다. 외부 AI 동의는 독립적으로 `GRANTED` 또는 거부할 수 있으며, 거부 시 Private 코드 외부 전송과 그 근거를 사용하는 AI 면접을 차단한다(BR-33). Public 전용 분석·면접은 계속 사용 가능하다. P-12는 이후 동의 변경·철회와 Project 생성 전 선택적 동의에 사용한다. 실제 외부 AI 제공자·보관기간은 `[결정 필요]`다.
 
