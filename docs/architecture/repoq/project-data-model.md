@@ -47,13 +47,15 @@ erDiagram
 
 ## 3. 등록·분석·철회의 원자성
 
-P-01은 외부 GitHub 권한·Repository ID를 확인한 뒤 **하나의 DB 트랜잭션**에서 USER 장벽 잠금, 동의 이벤트(인라인 요청 시), `registered_project`, 하나 이상 `project_repository`, PROJECT 장벽, 최초 `analysis_job(QUEUED)`를 기록한다. 활성 `(owner_user_id,github_repository_id)` UNIQUE가 동시 등록을 최종 차단한다. P-07/P-05는 활성 Job이 있으면 `409`; P-08의 연결 제거·Private 철회는 활성 Job을 `CANCELLED`로 바꾼 뒤 구성 버전을 올린다. 이후 허용된 구성의 새 Job만 QUEUED로 넣어 Project별 활성 Job UNIQUE를 지킨다. 모든 쓰기는 USER → PROJECT 장벽 순서로 잠근다. 연결 추가/제거와 Job 게시가 경합하면 오래된 구성 결과는 버린다. 마지막 Repository 제거는 거부하고 P-06 Project 삭제를 사용한다.
+P-01은 외부 GitHub 권한·Repository ID를 확인한 뒤 **하나의 DB 트랜잭션**에서 USER 장벽 잠금, 동의 이벤트(인라인 요청 시), `registered_project`, 하나 이상 `project_repository`, PROJECT 장벽, 최초 `analysis_job(QUEUED)`를 기록한다. 활성 `(owner_user_id,github_repository_id)` UNIQUE가 동시 등록을 최종 차단한다. P-05는 기존 활성 Job(`QUEUED`/`RUNNING`)이 있으면 `409`를 유지한다. A 단계의 P-07 추가와 P-08 일반 연결 제거는 기존 Job이 `QUEUED`이면 이를 `CANCELLED`로 바꾸고, 종료 상태이면 그대로 두며, 구성 버전 변경과 새 구성의 `QUEUED` Job 생성을 **하나의 DB 트랜잭션**에서 처리한다. 기존 Job이 `RUNNING`이면 둘 다 `409`다. Project별 활성 Job UNIQUE를 지키며 모든 쓰기는 USER → PROJECT 장벽 순서로 잠근다. 연결 추가/제거와 Job 게시가 경합하면 오래된 구성 결과는 버린다. 마지막 Repository 제거는 `409`로 거부하고 P-06 Project 삭제를 사용한다.
 
 Job은 Repository별 상태를 `repository_progress`에 갱신하고 모든 Repository의 고정 Commit SHA·역할·관계·근거를 준비한다. **하나라도 실패하면 새 READY Snapshot을 게시하지 않는다(BR-34).** 게시 트랜잭션에서 USER/PROJECT 장벽, 구성 버전, 모든 Repository 접근·수집 동의, Job ID·활성 상태를 재검사한 뒤 Snapshot·Member·Evidence·Topic·latest READY 포인터를 원자 저장한다. `(project_id,analysis_job_id)` UNIQUE 및 활성 Job UNIQUE로 중복 게시를 막는다. 이전 Snapshot은 권한·동의와 연결 구성이 모두 유효할 때만 면접에 사용한다.
 
 GitHub 권한·수집/외부 AI 동의 철회 **또는 Private 연결 제거(P-08)** 시 Project는 `analysis_snapshot.access_state=BLOCKED/DELETE_PENDING`을 **먼저 커밋**한다. GitHub 권한 또는 `PRIVATE_COLLECTION` 철회는 해당 `project_repository.access_state`도 `BLOCKED`로 만든다. `EXTERNAL_AI`만 철회하면 Repository의 로컬 수집 권한은 유지하되 외부 전송·Private 면접 경로를 닫는다. `snapshot_member`의 Repository ID로 영향받는 통합 Snapshot **전체**를 찾고 해당 Job 취소·P-03/X-01의 기존 Snapshot 차단을 적용한다. `latest_ready_snapshot_id`가 그 대상을 가리키면 같은 트랜잭션에서 비운다. Interview는 Private 근거 세션의 민감 접근 직전 X-01로 재검증해 Project/Auth/GitHub 확인 장애에도 fail closed한다. X-05는 같은 `revocation_id`로 멱등 재시도하며 대상 Snapshot에서 파생된 면접 세션·질문·답변·평가·캐시를 삭제한다. X-05 완료 뒤 Project가 Snapshot·근거·분야·멤버를 삭제하고 정리 상태를 완료한다. 중간 실패는 `DELETE_PENDING`을 유지해 재시도한다. 백업 삭제 기한은 `[결정 필요]`다.
 
 외부 AI 동의가 없으면 Private 수집 동의가 있어도 Private 코드는 외부 LLM으로 보내지 않는다. 해당 Private 기반 AI 면접은 비활성화하며, 통합 Snapshot이 READY이고 Public 근거가 있으면 X-01의 `PUBLIC_ONLY` 투영으로 Private 출처·관계·분야를 제외한 면접을 허용한다(BR-33). 철회로 기존 통합 Snapshot을 삭제한 뒤에도 Public 연결은 유지하고 현재 유효한 구성에서 새 분석을 접수할 수 있다. 동의 없는 Private 연결이 활성 구성에 남아 있다면 새 READY를 만들 수 없으므로 사용자는 해당 연결을 제거하거나 다시 승인해야 한다. Public 전용 Project 생성·이용에는 App 설치나 Private 동의가 필요 없다.
+
+A 단계 일반 연결 제거의 `RUNNING` Job `409` 정책은 GitHub 권한·Private 동의 철회에 적용하지 않는다. Private 권한·동의 철회는 진행 중 Job을 이유로 거부하지 않고 즉시 접근을 차단한다. Worker의 취소 확인, Snapshot 무효화, X-05 연동은 후속 구현 범위다.
 
 ## 4. V1 보존과 신규 Migration 순서 (SQL 미작성)
 
