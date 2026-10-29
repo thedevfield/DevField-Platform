@@ -40,7 +40,7 @@ Auth는 Java 21, Spring Boot 4.x, Spring Security 7.x의 OAuth2 Login·Resource 
 | 담당·경로·목적 | Auth · `GET /api/account/me` · 본인 계정/로그인 수단/탈퇴 진행 조회 |
 | 인증·헤더 | BFF `ServiceCredential` + 본인 `SessionHandle`; 브라우저 요청은 Web Cookie. ACTIVE와 DELETING의 기존 세션에 한해 허용 |
 | 요청 | Body·Query 없음. 요청자 지정 User ID 금지 |
-| 응답 예시 | `200 {"userId":"<uuid>","emailLoginEnabled":false,"socialProviders":["KAKAO"],"deletionStatus":"DELETING"}`. 이메일 등 개인정보 필드는 목적에 필요한 범위만 후속 확정 |
+| 응답 예시 | `200 {"userId":"<uuid>","displayName":null,"email":null,"emailLoginEnabled":false,"emailLoginPending":false,"emailOwnershipVerified":false,"socialProviders":["KAKAO"],"createdAt":"2026-10-29T00:00:00Z","deletionStatus":"NONE"}`. `email`은 본인에게만 표시하며 대기 중에는 확인된 주소로 표시하지 않는다 |
 | 실패 | `401` 세션 없음·만료·최종 폐기, `503` Auth 저장소 장애 |
 | 검증·재시도 | 세션 핸들 해시·만료·소유자를 Auth에서 확인. 읽기 재시도 가능. 타 계정 정보 반환 금지 |
 | 관련 요구·확정 | FR-ACC-002·009, AT-47·48 · 기존 A-01 의미 **확정**, 응답 세부 필드 **초안** |
@@ -110,9 +110,9 @@ Google의 [Security Bundle 안내](https://developers.google.com/identity/siwg/s
 | 항목 | 계약 |
 |---|---|
 | 담당·메서드·경로 | Auth · `POST /api/auth/verify-email` |
-| 목적·인증 | 가입 또는 기존 소셜 계정에 추가할 이메일의 소유권 확인; 사용자 JWT 불필요, 일회용 증명 필요 |
+| 목적·인증 | 신규 가입 이메일의 소유권 확인; 사용자 JWT 불필요, 일회용 증명 필요. 기존 소셜 계정 추가는 AUTH-08의 별도 세션 결합 확인 경로 사용 |
 | 헤더·요청 예시 | JSON, BFF `ServiceCredential`; `{"token":"<one-time-proof>"}`. Web의 확인 화면이 일회용 증명을 받은 뒤 같은 출처 BFF로 POST하고 즉시 화면 URL을 정리한다 |
-| 응답·성공 | `204`, 본문 없음. 가입은 새 User ID와 이메일 수단 활성화; 로그인 중 추가는 **기존 User ID 유지** |
+| 응답·성공 | `204`, 본문 없음. 가입은 새 User ID와 이메일 수단 활성화. 로그인 중 추가는 AUTH-08에서 **기존 User ID 유지** |
 | 실패 | `400` 형식·목적 불일치, `409` 이메일 예약/연결 충돌, `410` 만료·이미 소모, `503` 저장소 장애 |
 | 검증·멱등·보안 | 토큰 해시·목적·예약 대상·만료를 **원자적으로** 확인/소모한다. 소모 재요청은 거부. 메일 링크의 증명은 Web URL의 fragment로 전달해 HTTP 요청·Referrer에 싣지 않고, 화면에서 같은 출처 POST 직후 `history.replaceState`로 제거한다. 이는 사용자 JWT가 아니며 화면의 CSP·XSS 방어와 로그 마스킹을 검증한다 |
 | 관련 요구·상태 | FR-ACC-007·008, AT-45·46 · **초안** |
@@ -149,7 +149,7 @@ Google의 [Security Bundle 안내](https://developers.google.com/identity/siwg/s
 | 목적·인증 | 확인된 이메일 수단에 일회용 재설정 안내; 로그인 불필요, BFF 서비스 인증 필요 |
 | 헤더·요청 예시 | JSON, BFF `ServiceCredential`; `{"email":"person@example.test"}` |
 | 응답·성공 | 계정 존재와 무관하게 `202 {"status":"accepted"}` |
-| 실패 | `400` 형식, `429` 남용 제한, `503` 서비스 장애 |
+| 실패 | `400` 형식, `429` 남용 제한, `503` 저장소 장애. 특정 주소의 메일 발송 실패만으로 계정 존재를 드러내지 않도록 일반 `202`를 반환하고 토큰 트랜잭션을 롤백 |
 | 검증·멱등·보안 | 기존 유효 토큰 처리·메일 발송 빈도 제한을 적용. 재설정 링크도 Web URL fragment의 일회용 증명을 같은 출처 BFF로 POST하고 화면 URL에서 즉시 제거한다. 제공자 이메일 메타데이터만 있는 사용자에게 비밀번호 수단을 자동 생성하지 않음. 응답·지연으로 계정 존재 여부 노출 최소화 |
 | 관련 요구·상태 | FR-ACC-008, NFR-SEC-005, AT-45 · **초안** |
 
@@ -157,9 +157,9 @@ Google의 [Security Bundle 안내](https://developers.google.com/identity/siwg/s
 
 | 항목 | 계약 |
 |---|---|
-| 담당·메서드·경로 | Auth · `POST /api/auth/password-resets` |
+| 담당·메서드·경로 | Auth · `POST /api/auth/password-reset` |
 | 목적·인증 | 일회용 증명으로 새 비밀번호 설정; 로그인 불필요, BFF 서비스 인증 필요 |
-| 헤더·요청 예시 | JSON, BFF `ServiceCredential`; `{"token":"<one-time-proof>","newPassword":"<new-password>"}` |
+| 헤더·요청 예시 | JSON, BFF `ServiceCredential`; `{"token":"<one-time-proof>","password":"<new-password>"}` |
 | 응답·성공 | `204`, 본문 없음 |
 | 실패 | `400` 형식·강도, `410` 만료·소모, `503` 저장소 장애 |
 | 검증·멱등·보안 | 목적·해시·만료 검증과 소모, 비밀번호 해시 교체, 기존 AuthSession 폐기를 한 트랜잭션 경계로 설계. 토큰 재사용은 거부 |
@@ -169,24 +169,24 @@ Google의 [Security Bundle 안내](https://developers.google.com/identity/siwg/s
 
 | 항목 | 계약 |
 |---|---|
-| 담당·메서드·경로 | Auth · `PUT /api/account/password` |
-| 목적·인증 | 현재 이메일 로그인 수단의 비밀번호 교체; ACTIVE Web 세션과 최근 본인 확인 필요 |
+| 담당·메서드·경로 | Auth · `POST /api/account/password/change` |
+| 목적·인증 | 현재 이메일 로그인 수단의 비밀번호 교체; ACTIVE Web 세션과 현재 비밀번호 확인 필요 |
 | 헤더·요청 예시 | JSON, BFF `ServiceCredential`·`SessionHandle`, Web Origin/CSRF; `{"currentPassword":"<password>","newPassword":"<new-password>"}` |
 | 응답·성공 | `204`, 본문 없음 |
-| 실패 | `400` 강도, `401` 세션/현재 비밀번호, `403` DELETING·재확인 부족, `404` 이메일 수단 없음, `503` 장애 |
-| 검증·멱등·보안 | 비밀번호 해시 교체와 다른 세션 폐기 범위는 보안 정책으로 확정. 동일 요청의 자동 재전송 금지; 결과 불명일 때 A-01·재로그인으로 상태 확인 |
-| 관련 요구·상태 | FR-ACC-008, NFR-SEC-005 · **초안**, 세션 폐기 범위 **보류** |
+| 실패 | `400` 강도, `401` 세션/현재 비밀번호, `403` DELETING, `429` 재시도 제한, `503` 장애 |
+| 검증·멱등·보안 | 비밀번호 해시 교체 시 현재 세션만 유지하고 다른 세션과 기존 재확인 증명을 폐기한다. 동일 요청의 자동 재전송 금지; 결과 불명일 때 A-01·재로그인으로 상태 확인 |
+| 관련 요구·상태 | FR-ACC-008, NFR-SEC-005 · **구현 계약** |
 
 ### AUTH-08 — 소셜 사용자에게 이메일 로그인 수단 추가
 
 | 항목 | 계약 |
 |---|---|
-| 담당·메서드·경로 | Auth · `PUT /api/account/email-login` |
-| 목적·인증 | 기존 **ACTIVE User ID**에 확인 대기 이메일·비밀번호 수단 추가; 최근 본인 확인 필요 |
-| 헤더·요청 예시 | JSON, BFF `ServiceCredential`·`SessionHandle`, Web Origin/CSRF; `{"email":"person@example.test","newPassword":"<new-password>"}` |
-| 응답·성공 | `202 {"status":"verification_required"}`; AUTH-02 성공 뒤에만 로그인 가능 |
-| 실패 | `400` 입력, `401` 세션, `403` DELETING·재확인 부족, `409` 다른 User ID의 이메일 수단/예약과 충돌, `429` 제한 |
-| 검증·멱등·보안 | 세션 User ID를 사용하고 입력 User ID를 받지 않는다. 이미 다른 계정에 연결된 이메일을 자동 이전하거나 두 계정을 병합하지 않는다. 반복 시 유효 예약·메일 발송 제한 적용 |
+| 담당·메서드·경로 | Auth · `POST /api/account/email-login/requests`, `POST /api/account/email-login/verify`, `POST /api/account/email-login/password` |
+| 목적·인증 | 기존 **ACTIVE User ID**에 이메일 수단 예약, 소유권 검증, 비밀번호 최초 설정. 요청에는 최근 본인 확인 증명, 확인에는 요청 당시의 세션, 설정에는 ACTIVE 세션 필요 |
+| 헤더·요청 예시 | JSON, BFF `ServiceCredential`·`SessionHandle`, Web Origin/CSRF; 요청 `{"email":"person@example.test","reauthProof":"<one-time-proof>"}`, 확인 `{"token":"<one-time-proof>"}`, 설정 `{"password":"<new-password>"}` |
+| 응답·성공 | 차례로 `202 {"status":"verification_required"}`, `204`, `204`. 소유권 확인과 비밀번호 설정 둘 다 끝난 뒤에만 로그인 가능 |
+| 실패 | `400` 입력, `401` 세션, `403` DELETING·재확인 부족, `409` 다른 User ID의 이메일 수단/예약과 충돌, `410` 토큰 만료·소모, `429` 제한, `503` 장애 |
+| 검증·멱등·보안 | 세션 User ID를 사용하고 입력 User ID를 받지 않는다. 확인 토큰은 요청 세션과 User ID에 묶고 한 번만 소모한다. 이미 다른 계정에 연결된 이메일을 이전·병합하지 않는다. 설정 성공 시 현재 세션만 유지하고 다른 세션을 폐기한다. 반복 요청에는 발송 제한을 적용한다 |
 | 관련 요구·상태 | FR-ACC-003·008, AT-46 · **초안** |
 
 ## 4. OAuth 로그인·연결 및 JWKS
@@ -328,6 +328,12 @@ JWT Access Token·AuthSession·ActionToken·Web Cookie의 실제 수명, 재발�
 ### 6.1 DELETING과 세션의 예외 경계
 
 Auth가 A-04 최초 신청을 수락할 때 계정을 `DELETING`으로 전환하고 **AUTH-14의 새 JWT 발급을 중단**한다. 이미 발급된 JWT는 Project/Interview의 AUTH-15에서 거부된다. 다만 기존 Web 세션 핸들은 A-01 상태 조회와 같은 사용자의 A-04 재요청에 한해 제한적으로 유효하다. Auth가 두 서비스의 `204`를 확인하고 계정 정리를 완료하면 세션 핸들도 폐기한다. 사용자가 별도로 로그아웃하면 해당 핸들은 폐기돼 이후 A-01/A-04를 인증된 요청으로 호출할 수 없으므로, 진행 확인은 로그인 가능 상태·복구 정책에 따라 안내한다. 이 계약은 DELETING 사용자에게 일반 API 접근을 열어 주지 않는다.
+
+### 이메일 계정 관리 운영 계약 (Issue #3)
+
+Auth의 SMTP 설정은 호스트·포트·선택적 사용자 이름/비밀번호·인증·STARTTLS·연결/읽기/쓰기 타임아웃을 환경변수로 받는다. 가입 확인, 이메일 로그인 추가, 비밀번호 재설정은 각각 허용된 Web URL의 Fragment로 토큰을 전달한다. 토큰 원문은 DB·응답·URL Query·로그에 보관하지 않고 SHA-256 해시만 저장한다. 기본 인증/재설정 TTL은 30분, 동일 주소 재발송 간격은 1분이며 로그인/가입/재설정 시도 제한은 현재 프로세스 로컬 구현이다. 운영 배포에는 공유 남용 방어와 발송 신뢰성 정책이 필요하다.
+
+비밀번호 변경·최초 설정은 현재 세션만 유지하며 다른 세션, 기존 재확인 증명과 대기 중인 재설정 증명을 소모한다. 재설정은 모든 세션과 기존 재확인·재설정 증명을 소모한다. OAuth 계정 선택 요청은 Google·GitHub의 공식 `prompt=select_account`, Kakao의 `prompt=login`을 사용한다. Provider가 실제 화면과 세션 전환을 결정한다. 엄격한 Google REAUTH의 기존 `auth_time` 검증은 유지되며 계정 선택 요청만으로 강한 재인증을 증명하지 않는다.
 
 ## 7. 서비스 간 호출 권한과 삭제 경쟁
 
