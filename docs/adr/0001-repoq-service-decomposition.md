@@ -11,6 +11,8 @@
 
 ## 1. 결정 요약
 
+> **후속 범위 주석:** 이 ADR의 승인된 Project/Interview 서비스 분리와 데이터 소유권은 유지한다. 아래의 단일 공개 Repository·`AnalysisSnapshot` 서술은 결정 당시 제품 범위다. 정식 MVP의 Project 1:N Public/Private Repository 및 통합 Snapshot 확장은 [ADR-003](0003-repoq-multi-repository-private-access.md)과 최신 PRD·API 계약을 따른다. BR-31~36은 후속 사용자 승인으로 확정됐다.
+
 RepoQ는 **두 개의 독립 마이크로서비스**로 구성한다.
 
 1. **Project Service:** 공개 GitHub Repository 등록·분석, 기준 Commit `AnalysisSnapshot`, 코드/문서 근거와 질문 가능 분야, 프로젝트·분석 생명주기 소유.
