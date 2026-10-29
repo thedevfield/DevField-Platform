@@ -6,9 +6,9 @@
 | 문서 항목 | 내용 |
 |---|---|
 | 문서 ID | DF-PRD-RQ-001 |
-| 버전 | **v1.1 (v1.0 기준선 개정 초안) + ADR-002 인증 개정안** |
+| 버전 | **v1.2 Multi-Repository·Private P0 개정 초안 (v1.1 + ADR-002 유지)** |
 | 승인 기준일 | v1.0: 2026-10-17 · 개정 사항 승인: 2026-10-22 |
-| 상태 | **이메일 가입·회원 탈퇴 연동 변경 승인 반영 / ADR-002 인증 개정안 GitHub 게시 / 상세 구현·출시 검증 전** |
+| 상태 | **Multi-Repository·Private P0 및 BR-31~36 확정 / 운영값 결정·구현·출시 검증 전** |
 | 범위 | **RepoQ 정식 MVP + Vercel 웹 배포**, 초기 PoC 별도 구분 |
 | 승인권자 | 프로젝트 오너 |
 | 상위 브랜드 | DevField — `Practice. Solve. Grow.` |
@@ -17,6 +17,8 @@
 ## 0. 문서 상태·사용 원칙
 
 이 문서는 승인된 **RepoQ 정식 MVP 요구사항 기준선(v1.0)** 에 2026-10-22 승인된 **자체 이메일·비밀번호 가입 및 회원 탈퇴 연동**을 반영한 v1.1 개정 초안이다. 기존 v1.0은 Git 이력에 보존된다. **ADR-002 인증 개정안**은 기존 요구사항을 변경하지 않고 공통 인증의 소유자와 기술·검증 경계를 명시하며 기준 Commit `ad4b505d25b609a681b2726d590881c7cfb7affb`에 게시됐다. **Vercel 웹 프론트엔드 배포와 외부 접속 가능한 End-to-End 사용 흐름**을 P0에 포함한다. 파일·토큰 한도 등 별도 검증 항목과 Production 인증 상세 구성은 아직 확정하지 않는다. 이 승인은 **구현·테스트·배포 완료를 의미하지 않는다.**
+
+**v1.2 개정:** 한 Project의 여러 Public/Private GitHub Repository, GitHub App 접근 승인, Private 수집 동의와 별도 외부 AI 전송 동의, Repository별·통합 분석을 MVP P0으로 추가한다. 기존 인증·면접·삭제 책임은 유지한다. **BR-31~36은 사용자 승인으로 확정됐다.** AI 제공자·보관기간·백업 삭제 기한·Secret/KMS 운영값·Callback 주소는 여전히 `[결정 필요]`다. 이전 버전의 단일 공개 Repository 예시는 PoC 또는 구 계약 설명으로만 읽는다.
 
 - **[확정]**: 사용자가 승인한 제품 방향·정책 및 MVP Scope.
 - **[배포 요구]**: Vercel 웹 프론트엔드 Production 배포와 외부 E2E 검증이 MVP 완료 조건이다. 백엔드/DB 배포 환경과 도메인은 상세 설계에서 정한다.
@@ -31,12 +33,12 @@
 
 ### 요구사항 추적 집계
 
-| 구분 | v0.4 | v1.0 | v1.1 개정 초안 |
-|---|---:|---:|---:|
-| 기능 요구사항 (`FR-*`) | 58 | 62 | **65** |
-| 비기능 요구사항 (`NFR-*`) | 24 | 27 | **29** |
-| 인수 테스트 (`AT-*`) | 40 | 44 | **48** |
-| **합계** | **122** | **133** | **142** |
+| 구분 | v0.4 | v1.0 | v1.1 | v1.2 개정 초안 |
+|---|---:|---:|---:|---:|
+| 기능 요구사항 (`FR-*`) | 58 | 62 | 65 | **77** |
+| 비기능 요구사항 (`NFR-*`) | 24 | 27 | 29 | **37** |
+| 인수 테스트 (`AT-*`) | 40 | 44 | 48 | **60** |
+| **합계** | **122** | **133** | **142** | **174** |
 
 **건수는 문서에 정의된 고유 식별자 수**이며 구현 공수, 완료율 또는 통과한 테스트 수를 의미하지 않는다.
 
@@ -167,17 +169,18 @@ RepoQ는 공개 GitHub 저장소의 **실제 코드·문서·특정 Commit**을 
 ### 3.1 정식 RepoQ MVP — P0 [확정 방향]
 
 1. 자체 **이메일·비밀번호** 및 카카오·Google·GitHub 기반 **DevField 공통 사용자 계정**, 명시적 계정 연결·연결 해제·회원 탈퇴 및 서버 측 접근 권한.
-2. 사용자 지정 프로젝트 이름, **사용자별 동일 GitHub Repository 중복 등록 금지**, 프로젝트·개별 면접 이력 삭제.
-3. 공개 저장소 기본 브랜치의 특정 Commit을 기준으로 2단계 선별 수집·분석하고 파일·코드 근거, 질문 가능 분야 추출.
-4. **사용자 요청 시 재분석**. 기존 면접은 최초 시작 시 분석 Snapshot에 고정.
-5. **자유 연습**: 전체 랜덤 또는 근거 확인 분야 선택, 질문 묶음 단위로 계속 연습, 과거 기록 참고 및 중복 최소화.
-6. **모의면접**: 주요 질문 **5개**, 각 꼬리질문 **0~3개**, 이전 회차의 답변·평가·질문을 생성 입력에서 제외하고 독립 진행.
-7. 공통: 주요 질문→텍스트 답변→동적 꼬리질문→질문 묶음별 **정성 평가·근거·개선점·답변 예시**.
-8. 모의면접: **문항 묶음별 평가 5건 + 실제 출제 범위에 한정된 종합 평가 1건**, 전체 응시 완료 후 일괄 공개.
-9. 진행 상태 저장·일시 중단·재개. **명시적인 모의면접 포기 시 해당 미완료 회차 기록·임시 평가 삭제**.
-10. 프로젝트별 자유 연습·완료 모의면접 이력 조회·복습, 삭제 정책, 보관 정책.
-11. 개발 내부 AI 질문 품질 평가·개선 루프, 샘플 회귀 테스트, 실패·보안·비용·지연 측정.
-12. **Vercel 웹 프론트엔드의 Preview/Production 배포, 외부 HTTPS 접속 및 실제 RepoQ 주요 사용자 흐름의 배포 환경 검증.** 백엔드 서비스·DB의 호스팅, 통신 방식과 운영 비용은 상세 설계에서 결정한다.
+2. 사용자 지정 프로젝트 이름, **Project 1개에 여러 GitHub Repository 연결**, Public/Private 혼합, 프로젝트·개별 면접 이력 삭제.
+3. 각 Repository의 기본 브랜치 Commit을 고정해 2단계 선별 수집·근거 분석하고 Repository 역할·관계 및 통합 Project Snapshot을 생성한다.
+4. Private Repository에는 GitHub App의 사용자·설치 권한과 별도 DevField 수집 동의를 요구한다. Private 코드를 외부 AI 모델에 전송할 때에는 독립된 명시적 동의를 요구한다. 동의 거부 시에도 Public Repository 사용은 가능하다.
+5. **사용자 요청 시 재분석**. 기존 면접은 최초 시작 시 분석 Snapshot에 고정된다. 권한·동의 철회가 포함된 민감 Snapshot에는 접근 차단을 적용한다.
+6. **자유 연습**: 전체 랜덤 또는 근거 확인 분야 선택, 질문 묶음 단위로 계속 연습, 과거 기록 참고 및 중복 최소화.
+7. **모의면접**: 주요 질문 **5개**, 각 꼬리질문 **0~3개**, 이전 회차의 답변·평가·질문을 생성 입력에서 제외하고 독립 진행.
+8. 공통: 주요 질문→텍스트 답변→동적 꼬리질문→질문 묶음별 **정성 평가·근거·개선점·답변 예시**.
+9. 모의면접: **문항 묶음별 평가 5건 + 실제 출제 범위에 한정된 종합 평가 1건**, 전체 응시 완료 후 일괄 공개.
+10. 진행 상태 저장·일시 중단·재개. **명시적인 모의면접 포기 시 해당 미완료 회차 기록·임시 평가 삭제**.
+11. 프로젝트별 자유 연습·완료 모의면접 이력 조회·복습, 삭제 정책, 보관 정책.
+12. 개발 내부 AI 질문 품질 평가·개선 루프, 샘플 회귀 테스트, 실패·보안·비용·지연 측정.
+13. **Vercel 웹 프론트엔드의 Preview/Production 배포, 외부 HTTPS 접속 및 실제 RepoQ 주요 사용자 흐름의 배포 환경 검증.** 백엔드 서비스·DB의 호스팅, 통신 방식과 운영 비용은 상세 설계에서 결정한다.
 
 ### 3.2 최초 핵심 PoC — 정식 MVP의 축소 검증 [개발 순서 확정]
 
@@ -197,7 +200,7 @@ RepoQ는 공개 GitHub 저장소의 **실제 코드·문서·특정 Commit**을 
 
 ### 3.4 이번 범위에서 제외
 
-- 비공개 저장소 접근, 조직 GitHub 권한 위임 및 여러 Repository의 통합 분석.
+- GitHub Repository에 Write 권한을 요구하는 기능 및 사용자가 승인하지 않은 Repository의 수집.
 - 가져온 저장소의 코드를 빌드·실행·테스트하는 기능.
 - 실제 특정 기업의 검증된 기출 보장, 미공개 문항의 무단 수집·재배포.
 - LLM Fine-tuning을 전제로 한 모델 가중치 학습.
@@ -229,6 +232,10 @@ RepoQ는 공개 GitHub 저장소의 **실제 코드·문서·특정 Commit**을 
 | **US-17** | **설치나 로컬 환경 설정 없이 배포된 RepoQ 웹사이트에 접속해 면접을 이용하고 싶다.** | Vercel Production URL에서 로그인·등록·FREE/MOCK·평가·이력 E2E 성공 |
 | **US-18** | **소셜 계정 없이 이메일·비밀번호로 가입하고 로그인하고 싶다.** | 이메일 소유권 확인 후 가입·로그인·재설정 가능, 다른 계정 자동 병합 없음 |
 | **US-19** | **DevField를 탈퇴하면 내 RepoQ 프로젝트와 면접 기록도 정리됐는지 알고 싶다.** | 서비스별 삭제 완료 전에는 진행 중으로 표시, 완료 후 로그인 수단·세션 종료 |
+| **US-20** | 한 Project에 Public/Private Repository를 함께 연결하고 싶다. | Repository별 접근·분석 상태와 통합 결과 확인 |
+| **US-21** | Private 코드의 수집과 외부 AI 전송을 각각 결정하고 철회하고 싶다. | 독립 동의·거부·철회; Public 사용은 유지 |
+| **US-22** | 여러 Repository의 역할과 상호작용을 실제 근거로 설명받고 싶다. | 각 관계의 Repository·Commit·파일 출처와 확인 수준 표시 |
+| **US-23** | GitHub App 권한을 잃으면 Private 근거가 더 이상 노출되지 않기를 원한다. | 신규 처리·기존 민감 자료 접근 차단 및 정리 상태 확인 |
 
 ---
 
@@ -239,12 +246,16 @@ RepoQ는 공개 GitHub 저장소의 **실제 코드·문서·특정 Commit**을 
 ```mermaid
 flowchart TD
     A[이메일 또는 카카오/Google/GitHub 가입·로그인] --> B[내 프로젝트]
-    B --> C[공개 GitHub URL 및 표시 이름 입력]
-    C --> D{Repository ID 기준 중복?}
+    B --> C[표시 이름 및 Public/Private Repository 여러 개 선택]
+    C --> P{Private 포함?}
+    P -- 예 --> Q[수집 동의 및 GitHub App 설치·사용자 승인]
+    P -- 아니오 --> D{Repository ID·접근 확인}
+    Q --> D
     D -- 예 --> E[기존 프로젝트로 안내]
-    D -- 아니오 --> F[기본 브랜치/Commit 고정]
-    F --> G[구조 및 주요 코드 2단계 분석]
-    G --> H{질문 근거 충분?}
+    D -- 아니오 --> F[Repository별 기본 브랜치/Commit 고정]
+    F --> G[Repository별 근거·역할 및 Repository 간 관계 분석]
+    G --> S[통합 Project Snapshot 게시]
+    S --> H{질문 근거 충분?}
     H -- 아니오 --> I[제한·누락·근거 부족 안내]
     H -- 예 --> J[선택 가능한 기술 분야 제시]
     J --> K{연습 모드 선택}
@@ -308,7 +319,7 @@ flowchart TD
 
 | ID | 상황 | 기대 처리 |
 |---|---|---|
-| EX-01 | 지원하지 않는 GitHub URL/비공개·삭제된 저장소 | 분석 요청 차단 및 오류 사유 안내 |
+| EX-01 | 지원하지 않는 GitHub URL/승인·동의 없는 비공개 저장소/삭제된 저장소 | 분석 요청 차단 및 안전한 오류 사유 안내 |
 | EX-02 | 분석량 초과·실제 코드 근거 부족 | 누락 범위 표시, 없는 구현 단정 금지 |
 | EX-03 | GitHub Rate Limit·LLM 시간 초과 | 제한 재시도·상태 안내·중복 요청 통제 |
 | EX-04 | 인증 실패·소셜 계정 충돌 | 보호 데이터 미노출, 원 계정 로그인·명시적 연결 안내 |
@@ -382,6 +393,25 @@ flowchart TD
 | **FR-PRJ-012** | P0 [확정] | 사용자가 명시적으로 요청할 때 최신 기본 브랜치를 **재분석**한다. | 변경된 SHA로 새 Snapshot 생성·중복 SHA 재사용; 과거 회차는 기존 Snapshot 유지. |
 | **FR-PRJ-013** | P0 [확정] | 공통 기술 분야 후보 중 코드·문서 근거가 충분한 분야만 선택 가능하도록 분류한다. | 활성 분야마다 근거가 있고 불충분한 분야는 노출하지 않거나 비활성 안내. |
 | **FR-PRJ-014** | P0 [확정] | 프로젝트 삭제 시 소유한 분석 결과·질문·답변·평가 등 연관 데이터를 삭제한다. | 삭제 완료 후 동일 Repository 재등록 가능, 타 사용자 기록 영향 없음. |
+
+### 6.2.1 Multi-Repository·Private P0 추가 요구사항 (신규 ID)
+
+기존 `FR-PRJ-001`~`014`는 원래의 공개 단일 Repository 단계 계약으로 보존한다. 특히 `FR-PRJ-002`의 비공개 접근 오류는 **승인·동의 없는** 비공개 접근에 적용한다. 아래 신규 ID가 정식 MVP의 확장 범위를 정의한다.
+
+| ID | 우선순위 | 요구사항 | 수용 기준 |
+|---|---|---|---|
+| FR-PRJ-015 | P0 [확정] | Project 하나에 여러 Public/Private Repository를 연결한다. | 혼합 구성을 표시하고 각 Repository를 독립 식별한다. |
+| FR-PRJ-016 | P0 [확정] | Private 접근에 GitHub App의 Metadata: Read, Contents: Read 권한을 사용한다. | Public 등록에는 App 설치를 요구하지 않고 Write 권한을 요청하지 않는다. |
+| FR-PRJ-017 | P0 [확정] | DevField User ID와 GitHub User ID를 결합하고 사용자·App 설치 권한의 교집합을 검증한다. | 타 사용자의 Private Repository 연결·수집 거부; 호출 직전 권한 재확인. |
+| FR-PRJ-018 | P0 [확정] | Private 코드 수집·분석 동의를 Repository와 정책 버전별로 기록한다. | 동의 없는 수집 거부, 철회 시 신규 접근 즉시 차단. |
+| FR-PRJ-019 | P0 [확정] | Private 코드의 외부 AI 전송 동의를 수집 동의와 독립적으로 기록한다. | 외부 전송 직전 별도 유효 동의 확인; 거부해도 Public 이용 가능. |
+| FR-PRJ-020 | P0 [확정] | Repository별 역할·기술·구현 근거와 고정 Commit SHA 및 분석 누락 범위를 기록한다. | 근거가 Repository ID·SHA·경로에 연결된다. |
+| FR-PRJ-021 | P0 [확정] | Repository 간 통신·의존·데이터 흐름 관계를 분석한다. | 관계 양측 근거와 코드 확인/문서 주장/가설을 구분한다. |
+| FR-PRJ-022 | P0 [확정] | 여러 Repository 분석을 통합한 불변 Project Snapshot을 생성한다. | 구성원별 Repository ID·SHA·분석 버전을 고정하고 면접이 Snapshot ID를 참조한다. |
+| FR-PRJ-023 | P0 [확정] | Repository 추가·제거와 구성 버전 변경을 지원한다. | 분석 중 구성 변경이 기존 Job의 결과를 새 구성의 READY로 게시하지 못한다. |
+| FR-PRJ-024 | P0 [확정] | App 권한·Private 동의 철회를 감지하고 접근을 차단한다. | 진행 Job 중단, 영향받은 통합 Snapshot·면접 세션 식별 및 삭제, Interview 접근 차단·정리 연동(BR-32). |
+| FR-PRJ-025 | P0 [확정] | 구현 사실과 AI 추론·질문 가설을 분리한다. | 검증 가능한 근거가 없는 구현 단정·질문 출처 위조를 거부한다. |
+| FR-PRJ-026 | P0 [확정] | Private 동의 거부 사용자가 Public Repository를 계속 이용하게 한다. | Public 등록·분석·면접에 Private App 연결을 강제하지 않는다. |
 
 **선별 분석 정책:** (1) 구조·README·의존성·설정 확인 → (2) 질문 근거에 필요한 주요 코드·스키마·테스트·인프라 파일의 우선 수집. 수집·분석하지 않은 내용을 사실로 단정하지 않는다. 바이너리, 빌드 산출물, 생성 코드, 비밀정보는 제외 또는 안전하게 마스킹한다.
 
@@ -490,6 +520,7 @@ flowchart TD
 | NFR-REL-001 | 장애·멱등성 | 외부 실패·재시도·중복 제출에 통제된 처리. | 답변 소실·중복 확정·무한 재시도 없음. |
 | **NFR-REL-002** | 면접 상태 무결성 | `PAUSED`·명시적 `ABANDONED`·`COMPLETED`를 구분하고 포기 시 미완료 내용 제거. | 중단·삭제·평가 실패 동시성 반례에서 일관성. |
 | **NFR-REL-003** | 회원 탈퇴 일관성 | 공통 계정이 Project/Interview의 데이터 소유권을 존중해 각각의 멱등 삭제·완료 확인·장애 재시도를 조정한다. | 한쪽 실패에도 완료 오표시 없음; 늦은 쓰기·다른 사용자 데이터 오삭제 없음. |
+
 | NFR-PERF-001 | 성능 | 분석·질문·평가 지연시간을 측정, 실측 후 SLO 설정. | p50/p95·실패율 기록. |
 | NFR-COST-001 | 비용 | LLM 토큰·API 호출·수집 한도·재시도 비용을 계측. | 사용량·호출 원인 추적 및 상한 적용. |
 | **NFR-COST-002** | 사용자 할당량 | 사용자별 프로젝트·분석·자유 연습·모의면접 사용량 제한을 변경 가능한 설정으로 관리. | 제한 초과 시 거부·잔여량 안내, API 직호출 우회 차단. |
@@ -500,6 +531,19 @@ flowchart TD
 | **NFR-DEP-001** | 배포 보안 | Vercel Production/Preview의 환경변수·시크릿·호출 대상 격리; 클라이언트 번들에 서버 비밀키 노출 금지. | 빌드 산출물·요청 로그에 비밀키 노출 없음, 환경별 설정 검증. |
 | **NFR-DEP-002** | 공개 환경 인증·통신 | 실제 HTTPS 도메인에서 OAuth 콜백, 세션 쿠키, API CORS·인가·타임아웃이 유효해야 함. | 세 제공자 로그인과 보호 API 호출, 실패 경계 E2E 성공. |
 | **NFR-DEP-003** | 운영 가능성 | 빌드 실패·서버/API 장애 식별 및 Preview 확인·Production 롤백 절차를 마련. | 릴리스 문서, 배포 로그/상태 확인 및 복구 절차 검증. |
+
+**Multi-Repository·Private P0 추가 비기능 요구사항 (신규 ID, 기존 ID 의미 유지)**
+
+| ID | 분야 | 요구사항 | 검증 |
+|---|---|---|---|
+| NFR-SEC-006 | GitHub App 권한 | Metadata: Read·Contents: Read 최소 권한, User Access Token과 설치 권한 교집합, 호출 직전 재검증. | 타 사용자·권한 철회 Repository 접근 거부. |
+| NFR-SEC-007 | 토큰·콜백 | state·세션·사용자 결합, 만료·재발급, token 암호화·키 분리·로그 마스킹. | 위조 callback·token 노출·재사용 차단. |
+| NFR-SEC-008 | Webhook | HMAC 서명과 delivery 중복 검사 후 설치 제거·접근 변경 반영. | 위조·재생 이벤트 거부, 지연 중 API 접근 재검사. |
+| NFR-AI-008 | 근거 품질 | Repository ID·SHA·경로와 양측 관계 근거를 고정하고 구현 사실·문서 주장·AI 가설 구분. | 근거 없는 구현 단정·가짜 관계 READY 금지. |
+| NFR-AI-009 | 비신뢰 입력 | 저장소 파일을 명령으로 취급하지 않고 구조화 출력·출처·허용 범위 검증. | Prompt injection·비밀정보 외부 전송 차단. |
+| NFR-PRV-005 | 목적별 동의 | Private 수집과 외부 AI 전송의 별도 명시적 동의·버전·대상·철회 기록. | 수집 동의만으로 외부 AI 전송 불가. |
+| NFR-PRV-006 | 최소 보관 | 원본 코드·token·민감 근거의 저장·로그·캐시·백업을 최소화하고 철회 계보를 추적. | 철회 후 신규 접근 즉시 차단; 보관기간은 결정 필요. |
+| NFR-REL-004 | 경쟁·장애 | 구성 버전·쓰기 장벽으로 연결 변경/삭제와 늦은 Job 게시를 직렬화. | 오래된 구성의 Snapshot READY 금지, Auth/GitHub 장애 시 fail closed. |
 
 **초기 설정값과 측정 정책:**
 
@@ -536,6 +580,7 @@ flowchart TD
 | **BR-14** | 서로 다른 DevField 사용자 ID에 이미 저장된 데이터를 자동으로 병합하지 않는다. | 확정 (후속 검토) |
 | **BR-15** | 사용자당 동일 `GitHub Repository ID`의 활성 등록 프로젝트는 1개다. | 확정 |
 | **BR-16** | 동일 Repository의 다른 사용자 등록은 허용하며, 삭제된 본인 프로젝트는 신규 ID로 재등록 가능하다. | 확정 |
+
 | **BR-17** | 프로젝트의 코드를 갱신하려면 **사용자가 재분석을 요청**한다. 기존 기록은 이전 Snapshot을 유지한다. | 확정 |
 | **BR-18** | 자유 연습은 **전체 랜덤 / 실제 근거가 확인된 분야 선택**으로 질문 묶음을 추가한다. | 확정 |
 | **BR-19** | 자유 연습은 과거 출제 기록을 바탕으로 동일 의도 중복을 최소화하되 새로운 질문 관점을 허용한다. | 확정 |
@@ -550,6 +595,19 @@ flowchart TD
 | **BR-28** | 로컬 E2E 통과만으로 정식 MVP 공개 배포 완료를 선언하지 않는다. Vercel Production 외부 URL에서 핵심 흐름 검증이 필요하다. | 확정 |
 | **BR-29** | DevField 계정은 자체 이메일·비밀번호와 3종 소셜 로그인 수단을 제공한다. 같은 이메일만으로 별도 User ID를 병합하지 않고, 확인된 기존 계정에 로그인 수단을 명시적으로 추가한다. | 확정 |
 | **BR-30** | 회원 탈퇴 시 공통 계정 소유자가 Project/Interview의 해당 사용자 데이터 삭제 완료를 각각 확인한 후 로그인 수단·세션을 종료한다. 진행 중 쓰기를 차단하고 일부 실패 시 재시도하며, 향후 제품이 사용자 데이터를 소유하면 완료 확인 대상을 추가한다. | 확정 |
+
+`BR-15`의 기존 중복 등록 원칙을 `BR-31`이 **Project 1:N 연결 전체의 활성 Repository**로 확장한다. `BR-16`의 타 사용자 독립 등록·삭제 후 재등록 원칙은 유지한다.
+
+**Multi-Repository·Private 정책 — BR-31~36 사용자 승인 완료.**
+
+| ID | 정책 | 상태 |
+|---|---|---|
+| BR-31 | 동일 GitHub Repository는 동일 DevField 사용자의 활성 Project 하나에만 연결한다. 다른 사용자의 동일 Public Repository 등록은 허용한다. | 확정 |
+| BR-32 | Private Repository의 접근 권한 또는 동의가 철회되면 관련 분석·면접의 민감정보 접근을 즉시 차단한다. 영향받은 통합 Snapshot과 면접 기록은 안전한 정리 절차로 삭제한다. 백업 삭제 기한은 결정 필요. | 확정 |
+| BR-33 | Private 코드 수집·분석과 외부 AI 전송에 독립적인 명시적 동의를 받는다. 외부 AI 동의가 없으면 Private 코드를 외부 LLM으로 전송하지 않고 해당 Private 기반 AI 면접을 비활성화한다. Public 이용은 허용한다. | 확정 |
+| BR-34 | Repository 일부 분석 실패 시 새 통합 Snapshot을 READY로 게시하지 않는다. 기존 Snapshot은 접근 권한·동의가 유지될 때만 재사용한다. | 확정 |
+| BR-35 | Repository를 최소 하나 이상 확정한 뒤 Project를 생성한다. 별도 영속 DRAFT Project를 필수로 만들지 않는다. | 확정 |
+| BR-36 | GitHub App은 thedevfield Organization 소유이며 RepoQ Project Service가 연결·권한·분석 동의를 소유한다. Auth는 공통 계정·인증을 소유한다. | 확정 |
 
 ### 질문 묶음·세션 종료의 의미
 
@@ -569,8 +627,10 @@ flowchart TD
 | `SocialIdentity` | 소셜 로그인 연결 | User ID, `provider`, 제공자 고유 ID, 연결/해제; `(provider, provider_user_id)` 유일 |
 | `EmailCredential` | Auth가 소유하는 자체 이메일 로그인 수단의 논리 개념 | User ID, 확인된 이메일, 안전한 비밀번호 검증 정보; 물리 테이블·DB 제품 미확정 |
 | `AccountDeletion` | 회원 탈퇴 작업의 논리 상태 | User ID, `DELETING`, 서비스별 완료 확인·재시도; 물리 저장 방식 미확정 |
-| `RegisteredProject` | 사용자 등록 프로젝트 | User ID, GitHub Repository ID, 표시 이름, 활성 상태 |
-| `AnalysisSnapshot` | 특정 Commit의 프로젝트 분석 | Project ID, Repository, 브랜치, Commit, 상태, 분석 버전/누락 범위 |
+| `RegisteredProject` | 사용자 등록 논리 프로젝트 | User ID, 표시 이름, 구성 버전, 활성 상태 |
+| `ProjectRepository` | Project에 연결된 Public/Private Repository | Project ID, GitHub Repository ID, 접근 상태, 연결 상태 |
+| `GitHubConnection` / `RepositoryConsent` | Project 소유 App 연결 / 목적별 동의 이력 | DevField User ID, GitHub User ID·설치 ID / Repository·목적·버전·결정 |
+| `AnalysisSnapshot` / `SnapshotMember` | Repository별 SHA 명세를 고정한 통합 분석 | Project ID, 구성 버전, Repository ID·Commit SHA 멤버; 역할·관계의 검증된 구조화 결과 |
 | `EvidenceReference` | 코드·문서 근거 | Snapshot, 실제 파일 경로·라인·근거 종류 |
 | `AvailableTopic` | 분석 근거가 확인된 질문 분야 | Snapshot, 공통 분야 Key, 활성 상태, 근거 참조 |
 | `PracticeSession` | 자유 연습/모의면접 | User/Project ID, Snapshot ID, `mode=FREE/MOCK`, 상태, 시작·중단·완료 시각 |
@@ -585,7 +645,10 @@ flowchart TD
 
 ```mermaid
 erDiagram
+    REGISTERED_PROJECT ||--|{ PROJECT_REPOSITORY : contains
     REGISTERED_PROJECT ||--o{ ANALYSIS_SNAPSHOT : has
+    ANALYSIS_SNAPSHOT ||--|{ SNAPSHOT_MEMBER : fixes
+    PROJECT_REPOSITORY ||--o{ SNAPSHOT_MEMBER : identifies
     REGISTERED_PROJECT ||--o{ PRACTICE_SESSION : has
     ANALYSIS_SNAPSHOT ||--o{ PRACTICE_SESSION : basis
     PRACTICE_SESSION ||--o{ QUESTION_BUNDLE : contains
@@ -617,7 +680,7 @@ erDiagram
 - 서로 다른 서비스의 DB를 직접 접근하지 않고 명시적인 API·계약을 이용한다.
 - RepoQ의 핵심 차별화는 **실제 코드 근거 기반 질문·꼬리질문·정성 피드백**이다. 단순히 서비스 수를 늘리는 것은 목표가 아니다.
 - Kafka, Redis, Kubernetes, Vector DB, 별도 AI Microservice 등은 자동 도입하지 않는다.
-- [ADR-002](../../adr/0002-devfield-common-authentication.md)에 따라 DevField 공통 인증은 독립 Auth Service이며 Spring Boot 4.x + Spring Security 7.x를 사용한다. Better Auth는 Production 인증으로 채택하지 않는다. `DevField-Auth` 별도 Repository는 생성 예정이며 이 문서 개정에서 생성하지 않는다. 이 결정은 범용 OAuth/OIDC Provider 구축을 승인하지 않는다.
+- [ADR-002](../../adr/0002-devfield-common-authentication.md)에 따라 DevField 공통 인증은 독립 Auth Service이며 Spring Boot 4.x + Spring Security 7.x를 사용한다. Better Auth는 Production 인증으로 채택하지 않는다. `DevField-Auth` 별도 Repository는 현재 존재한다. 이 결정은 범용 OAuth/OIDC Provider 구축을 승인하지 않는다. Private GitHub 접근은 확정된 [ADR-003](../../adr/0003-repoq-multi-repository-private-access.md)의 Project 책임으로 분리한다.
 - Auth 발급 RS256 JWT를 사용자 API 인증에 사용한다. Project/Interview는 공개키·JWKS와 서명·허용 알고리즘·`iss`·`aud`·유효기간을 검증하고 `sub`를 공통 User ID로 취급한다. 서비스별 리소스 소유권과 내부 호출 권한은 각각 별도로 검증한다.
 
 ### 10.2 설계 단계에서 결정할 기술 사항
@@ -672,6 +735,7 @@ flowchart TD
 |---|---|---|---|
 | AT-01 | 공개 Repository 등록·분석 | FR-PRJ-001~008 | Snapshot·Commit·근거 확인. |
 | AT-02 | 비공개·삭제·잘못된 URL | FR-PRJ-001~002 | 안전한 오류·분석 차단. |
+
 | AT-03 | README·주석의 악성 AI 지시문 | NFR-AI-001, NFR-SEC-003 | 지시문 실행/정보 유출 없음. |
 | AT-04 | 존재하지 않는 구현을 단정하는 주요 질문 | FR-QST-001~003 | 허위 전제 출제 방지. |
 | AT-05 | 주요 질문→답변→꼬리질문 0~3개 | FR-INT-002~004 | 답변 연계, 상한 준수. |
@@ -718,6 +782,25 @@ flowchart TD
 | **AT-46** | 기존 소셜 계정에 이메일 로그인 추가·동일 이메일 별도 계정 충돌 | FR-ACC-003, FR-ACC-008, BR-29 | 본인 확인 후 기존 기록 유지, 이메일만으로 계정 자동 병합 없음. |
 | **AT-47** | 회원 탈퇴 중 Project/Interview 한쪽 실패·재시도·늦은 분석/AI 저장 | FR-ACC-009, NFR-REL-003, BR-30 | `DELETING` 유지, 멱등 재시도·늦은 기록 차단, 양쪽 완료 전 최종 완료 표시 없음. |
 | **AT-48** | 동일 공개 저장소를 등록한 다른 사용자와 탈퇴 대상 사용자 구분 | FR-ACC-009, NFR-SEC-001, BR-30 | 대상 User ID의 프로젝트·면접·로그인 수단만 정리, 타 사용자 기록 보존. |
+
+`AT-02`는 기존 Public URL 직접 등록 경로의 원래 테스트로 보존한다. 승인된 Private ID 선택·동의 경로는 신규 `AT-49`~`AT-53`에서 검증한다.
+
+**Multi-Repository·Private P0 추가 인수 테스트 (신규 ID)**
+
+| ID | 시나리오 | 관련 요구사항 | 합격 기준 |
+|---|---|---|---|
+| AT-49 | Public·Private 혼합 Project 등록·조회 | FR-PRJ-015~016 | 복수 ID·visibility·상태 분리, Public에 App 불필요. |
+| AT-50 | GitHub App 설치와 사용자 승인·조직 승인 | FR-PRJ-017, NFR-SEC-006 | 설치만으로 타 사용자 Private 접근 불가, 승인 대기 안내. |
+| AT-51 | 위조 callback state·설치 ID·Webhook·다른 사용자 연결 | FR-PRJ-017, NFR-SEC-007~008 | 설치 ID를 단독 신뢰하지 않고 모두 거부, token·코드 내용 미노출. |
+| AT-52 | Private 수집 동의 거부·철회 | FR-PRJ-018, FR-PRJ-024, BR-32 | Private 수집 즉시 차단, 영향받은 통합 Snapshot·면접 삭제, Public 이용 유지. |
+| AT-53 | 외부 AI 동의 없음/철회 | FR-PRJ-019, NFR-PRV-005, BR-32~33 | Private 코드 외부 모델 전송 0건·Private AI 면접 금지; 철회 시 기존 파생 기록 삭제, Public 전용 면접 허용. |
+| AT-54 | Repository별 SHA·근거·역할 | FR-PRJ-020 | URL 이름 변경에도 ID 추적, 누락 범위 표시. |
+| AT-55 | Repository 간 관계 | FR-PRJ-021, FR-PRJ-025 | 양측 근거·문서 주장·가설 구분, 허위 단정 거부. |
+| AT-56 | 통합 Snapshot과 면접 고정 | FR-PRJ-022, BR-32 | 정상 재분석에서는 구성원 SHA·기존 면접 ID 불변; Private 철회 시 영향받은 Snapshot·면접 삭제. |
+| AT-57 | 분석 중 연결 추가·제거·늦은 작업 | FR-PRJ-023, NFR-REL-004 | 이전 구성 결과가 새 READY로 게시되지 않음. |
+| AT-58 | 일부 Repository 실패 | FR-PRJ-022, BR-34 | Repository별 실패 표시, 새 통합 READY 게시 금지; 이전 Snapshot은 유효 권한·동의가 있을 때만 사용. |
+| AT-59 | GitHub 권한·동의 철회와 Interview | FR-PRJ-024, BR-32~33 | 신규 접근·진행 면접의 민감정보 즉시 차단, 영향받은 통합 Snapshot·면접 기록 삭제 및 X-05 재시도. Public 전용 이용 유지. |
+| AT-60 | V1 데이터 이관·API 호환 | FR-PRJ-015, NFR-REL-004, BR-31 | 기존 Project ID·Public 등록·201/QUEUED 유지; 백필 검증·사용자별 동일 ID 동시 등록 차단·데이터 손실 없음. |
 
 인수 테스트의 `완료`는 **실제 기능 동작이 검증되었다는 뜻이 아니며**, 구현 시 자동화/수동 검증 절차로 구체화한다.
 
@@ -784,7 +867,7 @@ flowchart TD
 | **D-23** | Vercel 웹 프레임워크/프로젝트 연결·환경변수·Production 주소 결정 | 기술 스택·배포 설계 단계 |
 | **D-24** | 서버 API·DB·인증 백엔드 호스팅·공개 HTTPS·OAuth 콜백/CORS 설계 및 비용 산정 | 배포 설계 단계, Production E2E 전 |
 
-> **원칙:** PRD v1.0은 승인된 기존 기준선이며 이 문서는 이메일 가입·회원 탈퇴 연동 변경을 반영한 v1.1 개정 초안에 ADR-002 인증 개정안을 덧붙였다. Auth Service·Spring Security·RS256 JWT 결정은 [ADR-002](../../adr/0002-devfield-common-authentication.md)를 따른다. **LLM 제공자, DB 종류, Gateway와 분산 메시징 기술 선택을 제품 요구사항 확정의 선행 조건으로 강제하지 않는다.** 실측이 필요한 임계치는 `검증 필요`와 설정 기본값을 분리해 관리한다.
+> **원칙:** PRD v1.0·v1.1의 승인된 인증·사용자 정책을 유지하고 이 v1.2 초안에 Multi-Repository·Private P0 및 확정된 BR-31~36을 추가한다. Auth Service·Spring Security·RS256 JWT 결정은 [ADR-002](../../adr/0002-devfield-common-authentication.md)를 따른다. **AI 제공자, Gateway와 분산 메시징 기술 선택을 제품 요구사항 확정의 선행 조건으로 강제하지 않는다.** 실측이 필요한 임계치는 `검증 필요`와 설정 기본값을 분리해 관리한다.
 
 ---
 
@@ -839,9 +922,10 @@ flowchart TD
 | InfraField | 향후 인프라 실무 훈련 독립 서비스 |
 | PRD/SRS | 제품 요구사항 문서 / 소프트웨어 요구사항 명세 |
 | PoC | 핵심 가치의 작은 수직 시나리오 검증; 정식 MVP 완료와 구분 |
-| RegisteredProject | 사용자가 등록한 Repository의 프로젝트 고유 ID와 표시 이름 |
+| RegisteredProject | 사용자 소유 논리 Project의 고유 ID·표시 이름·Repository 구성 버전 |
 | GitHub Repository ID | 이름/URL 변경과 별도로 저장소를 식별하는 GitHub 제공 식별자 |
-| AnalysisSnapshot | 특정 Repository·기본 브랜치·Commit에 대한 분석 결과 |
+| AnalysisSnapshot | Repository별 Commit SHA·역할·관계를 고정한 불변 통합 분석 결과 |
+| SnapshotMember | 통합 Snapshot에 속한 Repository ID·Commit SHA를 추적하는 멤버 |
 | EvidenceReference | 코드·문서·설정에서 확인된 근거 참조 |
 | AvailableTopic | 실제 근거를 확인한 질문 가능 기술 분야 |
 | FREE | 분야를 선택하고 질문 묶음을 이어가는 자유 연습 모드 |
@@ -873,4 +957,4 @@ flowchart TD
 
 ---
 
-**상태: v1.1 개정 초안 + ADR-002 인증 개정안 — 기존 이메일 가입·회원 탈퇴 연동 요구사항을 유지하며 인증 결정만 정합화. 이 개정안은 기준 Commit에 GitHub 게시됐다. Approved Baseline v1.0은 Git 이력에 보존되며 정식 서비스 구현·Production 검증·배포는 아직 완료되지 않음.**
+**상태: v1.2 Multi-Repository·Private P0 개정 초안 — 제품 방향과 BR-31~36은 확정됐다. 운영값은 결정 전이며 이 로컬 개정은 Commit·Push되지 않았다. Approved Baseline v1.0 및 v1.1 이력은 Git에 보존되며 정식 서비스 구현·Production 검증·배포는 아직 완료되지 않았다.**

@@ -11,6 +11,8 @@
 
 ## 1. 배경과 결정 범위
 
+> **후속 범위 주석:** `DevField-Auth` 저장소는 현재 존재한다. 이 ADR의 GitHub 소셜 로그인 결정은 로그인 수단에 관한 것이며 RepoQ의 Private 코드 접근·GitHub App 사용자 승인·분석 동의를 부여하지 않는다. 확정된 후속 경계는 [ADR-003](0003-repoq-multi-repository-private-access.md)에 기술한다.
+
 RepoQ의 Project Service와 Interview Service 분리는 [ADR-001](0001-repoq-service-decomposition.md)에서 결정했다. 당시에는 DevField 공통 User ID와 SocialIdentity를 논리적 공통 책임으로 두고 인증 구현 방식과 별도 서비스 여부를 보류했다. 이메일·비밀번호 및 Google·GitHub·Kakao 로그인, 여러 제품에 걸친 동일 사용자 식별과 회원 탈퇴 조정에는 공통 인증 소유자가 필요하다. 이 ADR은 그 보류된 인증 결정을 보완한다. Project/Interview의 분리와 각 데이터 소유권은 그대로 유지한다.
 
 ## 2. 결정

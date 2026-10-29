@@ -2,7 +2,7 @@
 
 > **DevField — Practice. Solve. Grow.**  
 > 문서 ID: `DF-ARCH-RQ-001`  
-> 버전: `v1.0 + ADR-002 인증 개정안` (상위 논리 아키텍처 기준선 유지)  
+> 버전: `v1.2 Multi-Repository·Private P0 정책 확정·최소 모델` (ADR-001/002 승인 경계 유지, ADR-003 후속 결정)
 > 작성일: `2026-10-17`  
 > 상태: **상위 서비스 경계 승인 / ADR-002 인증 개정안 GitHub 게시 / Production 상세 계약 설계 전**  
 > 관련 문서: [RepoQ MVP PRD](../products/repoq/PRD.md) · [ADR-001: RepoQ 서비스 분리](../adr/0001-repoq-service-decomposition.md) · [ADR-002: 공통 인증](../adr/0002-devfield-common-authentication.md)
@@ -20,7 +20,7 @@
 - 각 서비스는 소유한 데이터만 직접 읽거나 변경한다. 다른 서비스의 DB/테이블에는 직접 접근하지 않는다.
 - 서비스 간 기본 연동은 **동기 REST API**이며, 면접은 기준 `AnalysisSnapshot`에 고정된다.
 - **Project Service가 프로젝트 삭제 절차를 조정**하고, Interview Service는 관련 기록 삭제와 신규 생성 차단을 수행한다.
-- DevField의 공통 User ID/Identity는 RepoQ 도메인 밖의 **독립 Auth Service** 책임이다. `DevField-Auth` 별도 Repository는 생성 예정이며 이번 문서 작업에서 생성하지 않는다. Auth는 Spring Boot 4.x + Spring Security 7.x로 구현하고 Better Auth는 Production 인증으로 채택하지 않는다.
+- DevField의 공통 User ID/Identity는 RepoQ 도메인 밖의 **독립 Auth Service** 책임이다. `DevField-Auth` 별도 Repository는 현재 존재한다. Auth는 Spring Boot 4.x + Spring Security 7.x로 구현하고 Better Auth는 Production 인증으로 채택하지 않는다. GitHub 소셜 로그인과 RepoQ의 GitHub App 코드 접근은 별개다.
 
 **이번 문서에서 확정하지 않는 것**
 
@@ -57,9 +57,9 @@ flowchart TB
 |---|---|---|
 | `thedevfield/.github` | Organization 소개 | 존재 |
 | `thedevfield/DevField-Platform` | 제품 PRD·상위 아키텍처·ADR·공통 계약·통합 지침 | 존재, 현재 설계 문서 대상 |
-| `thedevfield/DevField-Web` | 공통 Web, RepoQ UI, Vercel 배포 | 생성 예정 |
-| `thedevfield/DevField-Auth` | 공통 인증·User ID·로그인 수단·탈퇴 조정 | 별도 Repository 생성 예정, 이번 작업에서는 미생성 |
-| `thedevfield/RepoQ` | Project/Interview 서비스 구현·자체 테스트·제품 단위 통합 환경 | 생성 예정 |
+| `thedevfield/DevField-Web` | 공통 Web, RepoQ UI, Vercel 배포 | 저장소 존재 |
+| `thedevfield/DevField-Auth` | 공통 인증·User ID·로그인 수단·탈퇴 조정 | 별도 저장소 존재 |
+| `thedevfield/RepoQ` | Project/Interview 서비스 구현·자체 테스트·제품 단위 통합 환경 | 저장소 존재, Project A 단계 구현 진행 |
 | `thedevfield/AlgoField`, `thedevfield/InfraField` | 후속 제품 구현 | 향후 |
 
 하나의 `RepoQ` 저장소에 두 실행 단위가 존재하더라도 **독립 프로세스 및 독립 배포가 가능**해야 한다. 경로별 CI는 공통 계약 변경 시 양측 검증을 실행하도록 설계한다.
@@ -77,12 +77,15 @@ flowchart TB
 
 ### 3.1 Project Service 상세 책임
 
-1. **사용자별 프로젝트 등록:** 공개 GitHub Repository URL 검증, GitHub Repository ID 기준 중복 제한, 이름 설정·수정, 사용자 소유권 검증.
+1. **사용자별 프로젝트 등록:** Public/Private Repository를 여러 개 연결하고 GitHub Repository ID 기준 중복·사용자 소유권을 검증한다. Private은 GitHub App 사용자 권한과 설치 권한의 교집합 및 별도 수집 동의를 확인한다. Public은 App 설치 없이 사용한다.
 2. **분석 작업:** 기본 브랜치와 Commit SHA 고정, README·설정·주요 소스·테스트·배포 파일을 중요도에 따라 선별 수집한다. 제한·누락·근거 부족을 표시한다.
-3. **불변 Snapshot:** 분석 시점의 Repository ID·Commit·분석 결과·근거·실제 확인된 질문 가능 분야를 하나의 버전으로 보관한다. 최신 분석 결과와 과거 Snapshot을 구분한다.
+3. **불변 Snapshot:** Repository별 SHA·역할·근거와 여러 Repository의 관계를 분석하고, 구성원 SHA 목록이 고정된 통합 Project Snapshot을 게시한다. 최신 분석 결과와 과거 면접이 참조하는 Snapshot을 구분한다.
 4. **READY 결정:** 면접에 사용할 검증 가능한 근거가 충분한지 판별하며, 부족할 경우 허위 구현을 가정해 강제로 READY 처리하지 않는다.
-5. **재분석:** 사용자가 요청할 때 새 Snapshot을 만든다. 기존 완료·진행 중 면접이 참고하는 Snapshot은 바꾸지 않는다.
+5. **재분석:** 사용자가 요청할 때 새 Snapshot을 만든다. 정상 재분석은 기존 면접의 Snapshot ID를 바꾸지 않는다. Private 권한·동의 철회 시에는 BR-32에 따라 영향받은 Snapshot과 면접을 차단·삭제한다.
 6. **프로젝트 삭제 조정:** 신규 면접 생성 금지 상태를 만들고, Interview의 차단·정리 확인 후 소유 데이터를 삭제한다. 실패와 재시도 이력을 관리한다.
+7. **Private 권한·동의:** thedevfield Organization 소유 GitHub App의 연결·User Access Token·Webhook·목적별 동의를 Project가 소유한다(BR-36). 외부 AI 전송 직전 별도 동의를 재검사한다. 권한·동의 철회 시 영향받은 통합 Snapshot과 면접의 민감 접근을 즉시 차단하고 삭제를 조정한다(BR-32). 백업 삭제 기한은 결정 필요다.
+
+Project의 물리 모델은 기존 V1의 세 테이블을 유지·확장하고 통합 `analysis_snapshot` 하나와 `snapshot_member`의 관계형 계보를 사용한다. Repository별 Job 진행은 기존 `analysis_job`의 제한된 구조화 상태로 보관한다. 별도 Repository Job/Snapshot/Relation 서비스·테이블은 MVP 필수가 아니다. 상세 제약과 V1 전환은 [Project 데이터 모델](repoq/project-data-model.md)에 따른다.
 
 ### 3.2 Interview Service 상세 책임
 
@@ -106,8 +109,8 @@ flowchart TB
 | 데이터/개념 엔터티 | 진실 원본(Source of Truth) | 타 서비스 사용 방식 |
 |---|---|---|
 | `DevFieldUser`, `EmailCredential`, `SocialIdentity`, 인증·탈퇴 상태 | Auth Service | 검증된 사용자 주체 ID/권한 계약 사용, 타 서비스 DB 직접 접근 금지 |
-| `RegisteredProject` | Project | Interview는 프로젝트 ID 및 유효성·소유권 확인 API 사용 |
-| `AnalysisSnapshot` | Project | Interview가 Snapshot ID로 불변 분석 결과 API 사용 |
+| `RegisteredProject`, `ProjectRepository`, `GitHubConnection`, `RepositoryConsent` | Project | Interview는 Project API를 통해 유효성·소유권·접근 상태 확인; GitHub token 직접 사용 금지 |
+| `AnalysisSnapshot`, `SnapshotMember` | Project | Interview가 X-01로 유효한 통합 Snapshot ID·구성원 SHA·허용된 최소 근거 사용 |
 | `EvidenceReference`, `AvailableTopic` | Project | Interview는 제한된 근거·주제 조회 계약 사용 |
 | 분석 작업·프로젝트 삭제 상태 | Project | Interview는 READY/DELETING 접근 제어 및 삭제 계약 사용 |
 | `PracticeSession` | Interview | Project는 세션 DB를 읽지 않고 삭제 API만 호출 |
@@ -130,7 +133,7 @@ flowchart TB
 
 - **동기 REST 중심:** 사용자 진입 흐름, READY Snapshot 검증·조회, 삭제 차단/완료 확인을 명시적 서비스 계약으로 수행한다.
 - **비동기 사용자 경험과 동기 서비스 API는 별개:** 긴 GitHub 분석은 `작업 ID + 상태 조회`로 처리할 수 있다. 브로커 기반 이벤트는 필수 구성으로 확정하지 않는다.
-- **면접 세션 시작 경계에서만 Project 조회를 최소화:** 이후 진행 중 질문·꼬리질문은 고정된 Snapshot 컨텍스트로 수행한다.
+- **면접 세션 시작 시 Project 검증:** Public 전용 면접은 고정된 Snapshot 컨텍스트를 사용할 수 있다. Private 근거 세션의 민감 읽기·쓰기 전에는 X-01로 접근 유효성을 재검사하고 실패 시 닫는다. X-05 철회 통보는 별도로 멱등 재시도한다.
 - **보안:** 사용자 API에서 Project/Interview는 Auth 발급 RS256 JWT를 공개키·JWKS로 검증하며 서명·허용 알고리즘·`iss`·`aud`·유효기간을 확인한다. 검증된 `sub`가 공통 User ID이고 리소스 소유권은 서비스별로 다시 확인한다. 내부 REST에는 별도의 호출 주체·서비스 권한 검증이 필요하다. 사용자 JWT 검증만으로 내부 호출을 허용하지 않는다. 구체적 서비스 간 인증·위임, 토큰 상태 전파·즉시 폐기, TLS 구성은 후속 설계다.
 - **운영:** 요청 ID/연관 ID, 타임아웃, 재시도 가능한 오류, 멱등성 키, 계약 버전 및 하위 호환성을 위험도에 맞춰 정의한다.
 
@@ -208,7 +211,7 @@ sequenceDiagram
 | MOCK 세션 | `ACTIVE` / `PAUSED` / `EVALUATION_PENDING` / `COMPLETED` | 5개 Bundle 완료 및 종합 평가 준비 전 평가 미공개 |
 | 모의면접 포기 | `ABANDON` 요청 → 미완료 기록 삭제 | 사용자 명시적 포기만 삭제 트리거 |
 
-분석 상태는 **프로젝트 전체의 현재 상태**와 구분한다. 예컨대 재분석에 실패하더라도 이전 READY Snapshot이 살아 있다면 기존 면접/복습이 무조건 실패 상태로 바뀌어서는 안 된다. 사용 가능한 Snapshot 선택 정책은 상세 설계에서 정의한다.
+분석 상태는 **프로젝트 전체의 현재 상태**와 구분한다. 재분석 일부 실패 시 새 통합 READY를 게시하지 않는다(BR-34). 이전 READY는 구성·권한·동의가 여전히 유효할 때만 재사용하고, Private 철회로 영향받은 Snapshot은 BR-32에 따라 차단·삭제한다.
 
 ### 6.2 프로젝트 삭제 오케스트레이션 (Project 주도)
 
@@ -244,12 +247,12 @@ sequenceDiagram
 
 | 상황 | 기대 동작 | 필수 검증/예방 |
 |---|---|---|
-| GitHub API 오류/Rate Limit | 신규 분석 상태와 사유 표시, 기존 READY Snapshot 보존 | 제한 재시도, 무한 대기·중복 분석 방지 |
+| GitHub API 오류/Rate Limit | Repository별 실패와 통합 분석 실패 표시, 새 READY 게시 금지; 기존 Snapshot은 접근 권한·동의가 유지될 때만 사용 | 제한 재시도, 무한 대기·중복 분석 방지 |
 | Project Service 일시 장애 | 신규 면접 시작 제한 가능, **이미 시작된** 세션은 확보한 컨텍스트로 가능한 범위에서 진행 | 진행 중 Project 재호출 최소화, 삭제 상태 동기화와 충돌하지 않게 설계 |
-| Interview Service 장애 | 기존 Project·Snapshot 데이터 불변, 답변 제출은 실패/재시도 안내 | 답변 영속화·멱등 제출, 임시 결과 노출 방지 |
+| Interview Service 장애 | 답변 제출 실패/재시도 안내; 철회 중 Project는 민감 접근 차단·삭제 대기 상태 유지 | 답변 영속화·멱등 제출, 임시 결과 노출 방지 |
 | LLM 응답 지연/오류 | 제출된 답변 보존, 평가 대기/재시도, 질문 창작 금지 | 타임아웃·재시도 제한·중복 과금 관측 |
 | 분석 도중 GitHub Commit 변경 | Snapshot은 시작 시점 Commit에 고정 | 파일 요청도 해당 Commit SHA 기준으로 수행 |
-| 재분석 중 사용자가 면접 시작 | 기존 유효 READY Snapshot 사용 정책을 명확히 적용 | Snapshot ID 고정·면접 출제 근거 혼합 금지 |
+| 재분석 중 사용자가 면접 시작 | 구성·권한·동의가 유효한 이전 READY만 사용 | Snapshot ID 고정·면접 출제 근거 혼합 금지 |
 | Project 삭제와 세션 시작·답변 제출 경쟁 | 삭제 이후 신규 기록 생성 금지, 삭제 완료 확인 | DELETING 게이트 + Interview 차단 + 멱등 삭제 |
 | MOCK 완료 직전 평가 생성 실패 | 5개 답변 보존, 평가 비공개·재시도 | `EVALUATION_PENDING`·평가 전체 준비 상태 |
 | 서로 다른 소셜 제공자 이메일 동일 | 자동 병합 금지, 명시적 계정 연결만 허용 | 검증된 제공자 ID와 서버 측 소유권 |
@@ -257,7 +260,7 @@ sequenceDiagram
 
 ## 8. 보안·AI 품질 및 비기능 원칙
 
-- **SSRF 및 URL 제한:** 지원 대상인 공개 `github.com` Repository를 안전하게 식별·정규화하고, 임의 URL을 서버가 그대로 요청하지 않는다.
+- **SSRF 및 URL 제한:** Public `github.com` URL을 안전하게 식별·정규화하고 Private은 GitHub App 권한으로 확인한 안정 Repository ID를 사용한다. 어느 경우에도 사용자 URL을 서버가 그대로 요청하지 않는다.
 - **외부 입력 비신뢰:** README·코드 주석·저장소 파일에 들어간 LLM 지시문은 분석 데이터이지 시스템 지시가 아니다. 임의 코드 실행을 하지 않는다.
 - **정보 최소화:** 공개 Repository라도 비밀 값이 포함될 수 있다. 탐지·마스킹·전송 범위 제한을 적용한다.
 - **근거·환각 방지:** 질문마다 가능한 근거 Snapshot/파일 경로를 검증하고, 불확실성·분석 누락을 표현한다.
