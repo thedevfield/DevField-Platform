@@ -1,13 +1,13 @@
 # DevField — RepoQ 통합 API 명세서
 
 > **Practice. Solve. Grow.**  
-> 문서 ID: `DF-API-RQ-ALL-001` (제안) · 버전: **v0.3 Multi-Repository·Private P0 확장 초안** · 최초 작성일: 2026-10-21 · 개정일: 2026-10-29
+> 문서 ID: `DF-API-RQ-ALL-001` (제안) · 버전: **v0.3 Multi-Repository·Private P0 확장 초안** · 최초 작성일: 2026-10-21 · 개정일: 2026-11-05
 > 상태: **제품 P0·BR-31~36 확정 반영 / 운영값 결정 전 / 로컬 미게시 계약 초안**
 > 기준: [RepoQ PRD v1.2 개정 초안](../../products/repoq/PRD.md) · [서비스 경계 설계서](../../architecture/repoq-service-boundaries.md) · [ADR-001](../../adr/0001-repoq-service-decomposition.md) · [ADR-002](../../adr/0002-devfield-common-authentication.md) · [ADR-003](../../adr/0003-repoq-multi-repository-private-access.md)
 
 ## 1. 한눈에 보는 구조
 
-> **Multi-Repository·Private P0 확장 계약:** 기존 P-01~06·X-01~04의 번호와 역사적 단일 공개 Repository 예시는 보존한다. 이 문서 마지막의 **「Multi-Repository·Private P0 확장 계약」**이 복수·비공개 요청과 Snapshot 형태에 우선 적용된다. 아래 21개 합계는 확장 전 기준이며 신규 P-07~13·X-05를 포함하면 **29개**다. BR-31~36은 확정됐으며 운영값만 `[결정 필요]`다.
+> **Multi-Repository·Private P0 확장 계약:** 기존 P-01~06·X-01~04의 번호와 역사적 단일 공개 Repository 예시는 보존한다. 이 문서 마지막의 **「Multi-Repository·Private P0 확장 계약」**이 복수·비공개 요청과 Snapshot 형태에 우선 적용된다. 아래 21개 합계는 확장 전 기준이며 초기 확장안의 신규 P-07~13·X-05를 포함한 논리 API 합계는 **29개**다. 현재 구현의 연결 상태 GET·동의 GET 및 P-10의 BFF/Backend 경로 분리는 10.2절에 별도로 명시하며, 29개를 실제 구현 Endpoint 수로 사용하지 않는다. BR-31~36은 확정됐으며 운영값만 `[결정 필요]`다.
 
 RepoQ 화면은 **프로젝트 선택·분석 → 자유 연습 또는 모의면접 → 질문·답변·평가·이력** 순서로 동작한다.
 
@@ -35,7 +35,7 @@ RepoQ 화면은 **프로젝트 선택·분석 → 자유 연습 또는 모의면
 
 ## 2. 공통 약속
 
-- 아래 URL은 **서비스별 논리 API 경로**다. 브라우저가 서비스를 직접 호출하는지, Web 서버가 중계하는지는 후속 설계에서 결정한다.
+- 아래 URL은 **서비스별 논리 API 경로**다. 현재 RepoQ Web은 BFF를 통해 Project Service를 호출한다(10절). 다른 미구현 API의 브라우저 경유 방식은 후속 설계 대상이다.
 - 모든 사용자용 API는 로그인 필요. Project/Interview는 Auth가 발급한 RS256 JWT를 공개키·JWKS로 검증한다. **서명·허용 알고리즘·`iss`·`aud`·유효기간**을 확인하고 검증된 `sub`를 DevField User ID로 사용한다. 각 서비스는 그 뒤 별도로 리소스 소유권을 확인하며 요청에 임의로 적은 User ID를 믿지 않는다. Auth 소유 계정 관리 API에도 해당 Auth의 인증·본인 확인 정책을 적용한다.
 - 사용자 JWT 검증은 X-01~X-04 내부 서비스 호출의 권한 검증을 대체하지 않는다. 서비스 간 인증·사용자 위임, 실제 issuer·audience 값은 후속 계약이다. JWT 서명 검증만으로 로그아웃의 즉시 폐기나 `DELETING` 상태 전파가 해결되지 않는다.
 - 목록/상세 조회에는 **허용된 정보만** 반환한다. 코드 전문·비밀 키·다른 사람의 데이터는 반환하지 않는다.
@@ -244,7 +244,7 @@ RepoQ 화면은 **프로젝트 선택·분석 → 자유 연습 또는 모의면
 ## 9. 아직 정해야 하는 것
 
 - **Auth 상세 계약:** 독립 Auth Service·Spring Boot 4.x + Spring Security 7.x·RS256 사용자 JWT는 결정했다. 실제 회원가입·로그인·OAuth 콜백·비밀번호 관리 Endpoint, 실제 issuer·audience, JWT·세션 수명·refresh·즉시 폐기, 키 저장·교체·JWKS 운영은 후속 설계다. 현재 A-01~04 경로 제안의 최종 필드도 후속 계약 대상이다.
-- **브라우저 및 내부 권한 경계:** BFF 도입·브라우저 호출 경유 방식, Production Cookie·domain·CORS·CSRF, 내부 서비스 간 인증·사용자 위임을 정해야 한다.
+- **브라우저 및 내부 권한 경계:** 현재 RepoQ Web의 BFF·Origin/CSRF 경계는 구현되어 있다(10절). Production 배포 설정 검증과 미구현 내부 서비스 간 인증·사용자 위임은 후속 대상이다.
 - **회원 탈퇴 연동:** X-03·X-04와 완료 확인 원칙은 정의했다. Auth의 재시도 간격·작업 상태 저장 및 `DELETING` 전파·늦은 JWT 접근 차단 방식, 백업·법정 보관 범위는 후속 상세 설계가 필요하다. 향후 제품이 사용자 데이터를 소유하면 별도 삭제 계약과 완료 확인을 추가한다.
 - **AI 및 DB 설계:** 질문 생성과 평가의 백그라운드 실행·재시도, 요청 중복 방지의 실제 구현, 데이터 보관/삭제, Snapshot 보존 범위, 물리 DB 테이블.
 - **물리 운영:** Auth와 RepoQ의 물리 DB·스키마·마이그레이션·호스팅 및 RepoQ의 나머지 기술 스택은 미정이다.
@@ -257,7 +257,11 @@ RepoQ 화면은 **프로젝트 선택·분석 → 자유 연습 또는 모의면
 
 ## 10. Multi-Repository·Private P0 확장 계약 (2026-10-29)
 
-이 절은 변경된 제품 방향의 계약 초안이다. 기존 단일 공개 저장소 예시는 **호환 요청**을 설명하며 정식 MVP의 유일한 형태가 아니다. 사용자 API는 Auth JWT·세션 확인과 DevField User ID 소유권 검사를 요구한다. 단, GitHub가 리다이렉트하는 P-10 callback은 Bearer 헤더 대신 일회용 state와 원 로그인 세션의 결합으로 사용자 신원을 검증한다. 타인 소유 Project·연결 항목은 `404`로 숨긴다. GitHub 소셜 로그인은 코드 접근 권한이 아니다. Private 접근은 유효한 GitHub App 사용자 권한, 설치 권한, 수집 동의를 모두 요구한다.
+이 절은 제품 설계와 현재 구현을 구분한다. **2026-11-05 로컬 기준:** RepoQ `fix/private-consent-revocation-contract` / `91d02d8`, DevField-Web `feature/repoq-private-repository-web` / `ca5fcc8`. 원격 main 반영 여부나 실제 GitHub Private E2E 통과를 뜻하지 않는다. 기존 단일 공개 저장소 예시는 호환 요청이다.
+
+현재 Backend 사용자 API는 JWT/JWKS 검증·AUTH-15 세션 확인·DevField User ID 소유권 검사를 요구한다. Web BFF는 HttpOnly 세션에서 서버용 JWT를 얻고 변경 요청에 Origin/CSRF를 검증한다. 브라우저 callback/setup GET은 일회용 Attempt Cookie·원 세션 결합으로 검사하며 Backend에는 인증된 완료 POST로 전달한다. 타인 소유 Project·연결 항목은 `404`로 숨긴다. GitHub 소셜 로그인은 코드 접근 권한이 아니다.
+
+**현재 구현 범위:** 등록·추가·제거, 안전한 목록/상세, GitHub App 연결·동의 조회/철회·연결 해제와 접근 차단이다. 분석 Worker·통합 Snapshot·Interview 데이터 삭제 및 X-05 전파는 미구현이며 아래 관련 동작은 향후 설계다. 실제 GitHub Private E2E는 미검증이다. `PROJECT_PRIVATE_REGISTRATION_ENABLED`와 `WEB_PRIVATE_REGISTRATION_ENABLED`는 기본 비활성이고 Public 등록은 App 연결·Private 동의를 요구하지 않는다. 등록 Gate와 기존 동의 철회·연결 해제는 분리한다.
 
 ### 10.1 기존 P API 변경
 
@@ -274,20 +278,79 @@ RepoQ 화면은 **프로젝트 선택·분석 → 자유 연습 또는 모의면
 | ID | 메서드·경로 | 요청·성공·주요 실패 |
 |---|---|---|
 | P-07 | `POST /api/projects/{id}/repositories` | P-01과 같은 `repositories:[{repositoryUrl 또는 githubRepositoryId,consents?}]`로 여러 연결을 한 번에 추가한다. Private 동의를 요청에 함께 기록할 수 있다. 기존 Job이 `QUEUED`이면 `CANCELLED` 후 새 구성의 `QUEUED` Job을 생성하고, `RUNNING`이면 `409`, 종료 상태이면 새 `QUEUED` Job을 생성한다. 성공 시 `201` 연결 항목·새 구성 버전·QUEUED Job, 같은 `Idempotency-Key` 재시도는 동일 응답. 중복·구성 충돌 `409`, 무권한 Private `403`, 타인 Project `404`. |
-| P-08 | `DELETE /api/projects/{id}/repositories/{repositoryId}` | `{repositoryId}`는 P-03의 연결 항목 `id`다. 마지막 활성 Repository 제거는 `409`와 P-06 삭제 안내로 0개 Project를 만들지 않는다. A 단계의 일반 연결 제거에서 기존 Job이 `QUEUED`이면 `CANCELLED` 후 남은 구성의 새 `QUEUED` Job을 생성하고, `RUNNING`이면 `409`, 종료 상태이면 새 `QUEUED` Job을 생성한다. 정리 대상이 없는 Public 연결 제거 완료는 `204`; 반복 요청은 멱등이다. 향후 비동기 삭제가 필요한 Private 연결의 `202` 정리 진행 계약은 유지하며, Private 근거가 있는 과거 통합 Snapshot·면접은 BR-32 삭제 계약을 우선 적용한다. |
-| P-09 | `POST /api/github/connections/start` | 로그인 사용자·세션에 결합된 일회용 `state`와 PKCE를 만들고 `nextAction=AUTHORIZE_USER/INSTALL_APP` 및 해당 GitHub URL을 `200`으로 반환한다. 사용자 승인과 App 설치를 별도 상태로 추적한다. Public 사용에는 호출 불필요. |
-| P-10 | `GET /api/github/connections/callback` | **사용자 승인 callback**의 `code/state`는 state·PKCE·원 세션·사용자·만료·일회성을 검사한 뒤 서버에서 교환한다. **설치 후 setup redirect**의 `installation_id/setup_action`은 신뢰하지 않고 원 세션의 대기 작업과 사용자의 GitHub App token으로 설치·Repository 권한을 GitHub API에서 확인한다. 둘을 같은 논리 경로에서 분기하되 승인·설치 완료를 별도 기록한다. 성공 시 연결 상태로 리다이렉트 또는 `200`; 오류 원문·token은 브라우저 응답에 싣지 않는다. 실제 callback/setup URL·BFF 경유는 `[결정 필요]`. |
-| P-11 | `GET /api/github/repositories` | 연결·설치 승인 상태와 사용자/App 권한 교집합 내 선택 가능한 Repository의 ID·이름·visibility·접근 상태를 함께 `200`으로 반환한다(페이지네이션). 별도 연결 상태 조회 API는 두지 않는다. 다른 사용자 Private 목록 노출 금지. GitHub 장애/한도 `503`/`429`. |
-| P-12 | `PUT /api/github/repositories/{githubRepositoryId}/consents` | Project 생성 전후 목적별 동의 변경·철회. `consents:[{purpose:PRIVATE_COLLECTION/EXTERNAL_AI,decision:GRANTED/DENIED/REVOKED,policyVersion}]`로 두 목적을 **한 번에 제출하되 별도 기록**한다. `DENIED`는 최초 거부, `REVOKED`는 기존 허용의 철회다. `GRANTED`는 사용자/App 권한 재확인; `REVOKED`는 이미 GitHub 권한을 잃어도 본인 기존 동의에 허용. 철회는 즉시 접근 장벽을 닫고 영향받은 통합 Snapshot·면접 삭제 작업을 접수하며 `202 {revocationId,status}`를 반환한다. 같은 결정의 반복 PUT은 새 철회 작업을 만들지 않고 같은 진행 상태를 반환한다. 단순 동의 갱신은 `200`. |
-| P-13 | `DELETE /api/github/connections/{connectionId}` | 본인 연결 해제·토큰 폐기 요청 `202`, 반복 요청 멱등. 관련 Private 연결의 접근 장벽과 X-05를 먼저 적용한다. GitHub App 자체 제거는 GitHub에서 발생하며 Webhook으로 처리한다. |
+| P-08 | `DELETE /api/projects/{id}/repositories/{memberId}` | `memberId`는 P-03의 Project Repository 연결 UUID이며 GitHub Repository ID가 아니다. 현재 본인 연결 제거 성공 및 이미 제거된 본인 연결의 반복 요청은 **`204 No Content`**, 본문 없음. 마지막 활성 연결 제거는 `409 last_repository_required`. 일반 Public 제거에서 기존 Job이 `QUEUED`이면 `CANCELLED` 후 새 구성의 `QUEUED` Job을 생성하고, `RUNNING`이면 `409`, 종료 상태이면 새 `QUEUED` Job을 생성한다. Private 연결 제거는 `RUNNING`이어도 관련 활성 Job을 DB에서 취소하고 구성 버전을 갱신한다. 남은 Private 접근이 유효할 때만 새 `QUEUED` Job을 생성한다. 미래 Snapshot·Interview 비동기 정리의 `202`는 현재 구현 완료 응답이 아니다. |
+| P-09 | `POST /api/github/connections/start` | 본문 없이 시작. Backend `200 {nextAction,url,proof,expiresAt}`; `nextAction=AUTHORIZE_USER/INSTALL_APP`. Web BFF는 Attempt Cookie를 저장하고 브라우저에 `200 {nextAction,url,expiresAt}`만 반환한다. 사용자 승인·App 설치는 별도 상태이며 Public에는 불필요하다. |
+| P-10 | Web BFF `GET /api/github/connections/callback`, `GET /api/github/connections/setup` | callback은 `code,state`(선택 `iss`), setup은 `installation_id,setup_action`을 받는다. BFF가 원 세션·Attempt를 확인한 뒤 아래 인증된 완료 POST로 전달한다. 브라우저 응답은 결과를 표시할 연결 관리 화면으로 **`303` 리다이렉트**다. |
+| P-11 | `GET /api/github/repositories` | Backend `page`(기본 1, 1~10000), `perPage`(기본 30, 1~100). `200 {status,repositories:[{id,fullName,name,isPrivate}],page,hasNext}`; `id`는 숫자. Web은 `page`만 받고 `perPage=30`으로 호출하며 `isPrivate`를 `private`로 정규화한다. 별도 연결 상태 GET은 아래에 명시한다. |
+| P-12 | `PUT /api/github/repositories/{githubRepositoryId}/consents` | `consents:[{purpose,decision,policyVersion}]`. 두 목적 제출을 유지하고 **한 목적만 보내는 경우 REVOKED만 허용**한다. 일반 갱신은 `200 {revocationId:null,status:"UPDATED"}`, 새 철회 또는 반복 철회를 포함하면 `202 {revocationId:<UUID>,status:"BLOCKED"}`. 목적별 전이·버전·멱등성은 아래 상세 계약을 따른다. |
+| P-13 | `DELETE /api/github/connections/{connectionId}` | 본인 연결 UUID, 본문 없음. `202 {connectionId:<UUID>,status:"BLOCKED"}`; 반복 요청도 같은 ID·상태. 관련 Private 접근 차단·활성 Job DB 취소·구성 버전 갱신·로컬 자격증명 제거 및 연결 generation 증가를 원자 처리한다(반복 해제는 generation을 다시 증가시키지 않음). GitHub App 자체 제거 또는 DevField 소셜 로그인 해제가 아니다. X-05/Interview 삭제 완료를 의미하지 않는다. |
 
-`P-01`·`P-07`의 Private ID는 P-11의 선택 결과를 그대로 신뢰하지 않고 저장 직전 사용자/App 권한·독립 동의·Repository ID를 다시 확인한다. Public도 GitHub 안정 Repository ID를 확인한다. `(owner_user_id,github_repository_id)` 활성 연결 UNIQUE와 트랜잭션으로 BR-31 경합을 막고 다른 사용자 Public 등록은 허용한다. `Idempotency-Key`는 P-01/P-05/P-07에 사용하며 사용자·경로·정규화된 본문과 결합해 재시도를 같은 결과로 처리한다. 같은 키의 다른 본문은 `409`, 보관기간은 `[결정 필요]`. DELETE는 반복 호출 자체가 멱등이다.
-
-P-07/P-08의 Job 취소·구성 버전 변경·새 Job 생성은 원자적 DB 트랜잭션으로 처리한다. P-05의 기존 활성 Job(`QUEUED`/`RUNNING`) `409` 정책은 유지한다. 일반 연결 제거의 A 단계 `RUNNING` Job `409`는 Private 권한·동의 철회에 적용하지 않는다. Private 철회 시 진행 중 Job으로 요청을 거부하지 않고 민감정보 접근을 즉시 차단한다. Worker 취소 확인, Snapshot 무효화, X-05 연동은 후속 구현 범위다.
+P-07/P-08의 Job 취소·구성 버전 변경·새 Job 생성은 원자적 DB 트랜잭션으로 처리한다. P-05의 기존 활성 Job(`QUEUED`/`RUNNING`) `409` 정책은 유지한다. 일반 Public 연결 제거의 A 단계 `RUNNING` Job `409`는 Private 연결 제거·권한·동의 철회에 적용하지 않는다. Private 연결 제거·철회 시 진행 중 Job으로 요청을 거부하지 않고 관련 활성 Job을 DB에서 취소하며 민감정보 접근을 즉시 차단한다. Worker 취소 확인, Snapshot 무효화, X-05 연동은 후속 구현 범위다.
 
 Private 생성·추가 시 `consents`를 요청에 포함하면 별도 P-12를 먼저 호출할 필요가 없다. 수집 동의 `GRANTED`가 없으면 Private 연결을 거부한다. 외부 AI 동의는 독립적으로 `GRANTED` 또는 거부할 수 있으며, 거부 시 Private 코드 외부 전송과 그 근거를 사용하는 AI 면접을 차단한다(BR-33). Public 전용 분석·면접은 계속 사용 가능하다. P-12는 이후 동의 변경·철회와 Project 생성 전 선택적 동의에 사용한다. 실제 외부 AI 제공자·보관기간은 `[결정 필요]`다.
 
-P-01/P-07의 혼합 요청 예시(동의 버전 값은 예시이며 운영 버전 확정값이 아님):
+#### P-09~P-11 완료·상태 조회
+
+| 구분 | Backend 메서드·경로 | 요청 / `200` 응답 |
+|---|---|---|
+| 사용자 승인 완료 | `POST /api/github/connections/callback/complete` | `{code,proof}` → `{userAuthorization,installation,connectionId}` |
+| 설치 완료 | `POST /api/github/connections/setup/complete` | `{proof,installationId,setupAction}` (`installationId`: 숫자, `setupAction`: `install/update`) → 같은 연결 상태 DTO |
+| 연결 상태 조회 | `GET /api/github/connections` | 본문 없음 → 같은 연결 상태 DTO; Web BFF도 같은 GET 경로·필드 제공 |
+
+완료 POST는 JWT·세션 인증이 필요하며 Backend에서 일회성·만료·사용자/세션·연결 generation을 확인한다. 사용자 승인에는 PKCE를 사용하고, 설치 redirect 값만으로 설치를 승인하지 않고 GitHub 사용자/App 접근을 검증한다. Web GET callback/setup을 Backend의 비인증 완료 API로 해석하지 않는다. 경로는 구현됐으며 Production 호스트/Provider 설정·실제 E2E는 별도 검증 대상이다.
+
+- `userAuthorization`: `NOT_AUTHORIZED / AUTHORIZED / REAUTHORIZE / DISCONNECTED`.
+- `installation`: `NOT_INSTALLED / PENDING_APPROVAL / INSTALLED`.
+- `connectionId`: UUID 문자열 또는 연결 이력이 없으면 `null`. P-13 후에는 같은 ID와 `DISCONNECTED`, `NOT_INSTALLED`를 반환한다.
+- P-11 목록 `status`: `CONNECTED / USER_AUTHORIZATION_REQUIRED / INSTALLATION_REQUIRED / INSTALLATION_PENDING`. `CONNECTED`가 아니면 `repositories:[]`, `hasNext:false`. 목록은 연결 상태 GET을 대체하지 않는다. Repository 이름은 현재 GitHub 권한으로 확인된 목록에만 제공하며 동의 GET에는 포함하지 않는다.
+
+#### P-12 목적별 결정·철회
+
+- 목적은 `PRIVATE_COLLECTION`, `EXTERNAL_AI`; 결정은 `GRANTED / DENIED / REVOKED`. 두 목적 요청은 중복 없이 각 목적 하나씩, 부분 요청은 **단일 REVOKED만** 가능하다. 단일 GRANTED/DENIED는 `400 invalid_request`다.
+- 새 GRANTED/DENIED 이벤트는 서버의 `PROJECT_PRIVATE_CONSENT_POLICY_VERSION`과 일치하는 버전이 필요하다. 미설정·불일치면 Backend `400 invalid_request`(Web 사전 검사에서는 `409 consent_policy_unavailable`). 사용자가 명시적으로 선택한 새 GRANTED는 현재 GitHub 사용자·App 설치·대상 Repository 권한과 기존 연결/Project 장벽을 재검증한다. 과거 GRANTED를 현재 버전으로 자동 인정하지 않는다.
+- 동일 목적·동일 결정·동일 정책 버전 반복은 이벤트를 추가하지 않는다. 따라서 두 목적 요청에서 한쪽 철회와 다른 쪽의 동일 결정·동일 버전을 함께 보내도 다른 쪽은 재승인하지 않는다. **동일 GRANTED라도 정책 버전이 달라지면** 새 버전에 대한 명시적 동의와 검증 후 이벤트를 추가한다. Web은 두 목적 결정을 각각 선택하게 하며 과거 결정을 새 버전으로 자동 갱신하지 않는다.
+- REVOKED는 본인 해당 목적의 최신 GRANTED 또는 REVOKED 이력이 있어야 한다. 이력이 없거나 DENIED인 경우 `403 consent_not_owned`. 현재 정책 미설정 또는 GitHub 권한 상실 상태에서도 철회할 수 있다. Web은 `policyVersion:null`로 보내며 Backend는 호출자 버전 대신 **저장된 이전 이벤트의 정책 버전**을 사용한다. 기존 두 목적 요청의 REVOKED에 버전 문자열이 있어도 이를 신뢰하지 않는다.
+- 단일 목적 철회는 다른 목적의 결정·정책 버전·이벤트를 변경하지 않는다. PRIVATE_COLLECTION 철회는 관련 Private 접근을 BLOCKED로 바꾸고 활성 Job을 DB에서 취소하며 구성 버전을 갱신한다. EXTERNAL_AI 철회는 외부 AI 동의를 무효화하지만 유효한 PRIVATE_COLLECTION까지 철회하지 않는다. Public 기능은 유지된다.
+- 반복 REVOKED는 새 이벤트 없이 기존 `revocationId`를 반환한다. 응답은 요청 단위의 ID 하나이며 목적별 상태는 동의 GET으로 확인한다. `202 BLOCKED`는 파생 자료 삭제 완료나 해당 Repository의 모든 목적이 철회됐다는 뜻이 아니다.
+- 최신 REVOKED의 정리 상태가 **NO_DERIVED_DATA일 때만** 새 결정 절차를 진행할 수 있다. PENDING 등 미완료·알 수 없는 상태는 `409 revocation_in_progress`. 기존 GRANTED/REVOKED를 DENIED로 덮는 전이는 `409 revocation_required`다. 정리 상태만으로 권한이 열리지 않으며, 재동의는 새 명시적 GRANTED·현재 정책·현재 GitHub 권한·기존 보안 장벽을 모두 확인한다. 과거 이벤트는 삭제/덮어쓰기하지 않는다.
+- 동의 이벤트와 접근 차단은 USER → PROJECT 잠금 순서를 유지한 단일 트랜잭션으로 처리한다. Worker·Snapshot·Interview 삭제는 아직 없고 현재 새 철회 이벤트는 `cleanupState=NO_DERIVED_DATA`를 기록한다.
+
+단일 목적 철회 요청 예시:
+
+```json
+{"consents":[{"purpose":"EXTERNAL_AI","decision":"REVOKED","policyVersion":null}]}
+```
+
+#### 동의 상태 조회 (P-12와 같은 경로의 GET)
+
+`GET /api/github/repositories/{githubRepositoryId}/consents` → `200`. ID는 양의 십진수 문자열(`[1-9][0-9]{0,18}`); 잘못된 형식은 `400`. Project에 등록하기 전에도 조회 가능하다.
+
+```json
+{
+  "githubRepositoryId": "123456",
+  "currentPolicyVersion": null,
+  "consentSubmissionAvailable": false,
+  "consents": [
+    {"purpose":"PRIVATE_COLLECTION","decision":null,"policyVersion":null,"cleanupState":null},
+    {"purpose":"EXTERNAL_AI","decision":null,"policyVersion":null,"cleanupState":null}
+  ]
+}
+```
+
+- `currentPolicyVersion`: 현재 서버 정책 문자열, 미설정이면 `null`. `consentSubmissionAvailable`은 **현재 정책 설정 여부만** 나타내며 Gate·GitHub 권한·정리 완료·실제 GRANTED 허용 여부를 보장하지 않는다. 예시의 `false`는 새 결정을 제출할 수 없음을 뜻한다.
+- `consents`: 두 목적의 최신 이벤트를 본인 DevField User ID 범위에서 반환한다. 미결정은 `decision/policyVersion/cleanupState` 모두 `null`. GRANTED/DENIED는 기록 당시 버전과 `cleanupState:null`; REVOKED는 기록된 이전 정책 버전과 실제 저장된 정리 상태 문자열을 반환한다. 과거 버전을 현재 버전으로 치환하지 않는다.
+- `NO_DERIVED_DATA`는 현재 파생 데이터가 없다는 의미이며 재동의 절차를 시작할 수 있는 상태다. 삭제 작업을 수행했다거나 접근 권한을 부여했다는 뜻이 아니다. 미완료·알 수 없는 정리 상태에서는 재동의 가능으로 판단하지 않는다. Web은 잘못된 DTO를 거부하고 조회 실패 시 이전 상태로 Private 제출하지 않는다.
+- 본인 동의 이력이 있으면 현재 GitHub 접근 권한 없이도 과거 상태를 조회할 수 있다. 이력도 접근 권한도 없으면 존재 여부를 숨기는 `404 repository_not_found`; GitHub 확인 장애는 `503` 등 오류로 닫는다. 권한이 있는 다른 사용자에게는 그 사용자의 미결정 상태만 제공하며 타인의 이력은 조회하지 않는다. 이름·경로·코드·자격증명은 반환하지 않는다.
+
+#### P-01/P-07 등록 시 철회 장벽
+
+Private ID는 P-11 선택 결과만으로 승인하지 않고 저장 직전 사용자/App 권한·독립 동의·Repository ID를 재확인한다. Public도 GitHub 안정 ID를 확인한다. `(owner_user_id,github_repository_id)` 활성 연결 UNIQUE와 트랜잭션으로 BR-31 경합을 막고 다른 사용자 Public 등록은 허용한다. Private 입력은 현재 버전의 두 목적 GRANTED/DENIED를 요구하고 PRIVATE_COLLECTION은 반드시 GRANTED다. 별도 P-12 선행 호출은 필수가 아니다.
+
+두 목적 각각의 최신 이벤트를 본인 USER Write Fence 안에서 INSERT 전에 검사한다. REVOKED + 미완료/알 수 없는 정리 상태는 `409 revocation_in_progress`로 거부하며 EXTERNAL_AI를 DENIED로 덮어 철회 상태를 숨길 수도 없다. NO_DERIVED_DATA 이후에도 기존 GRANTED/REVOKED → DENIED는 `409 revocation_required`다. 따라서 외부 AI 철회를 유지한 신규 Private 등록은 현재 등록 요청으로 표현할 수 없으며 Web은 이를 안내한다. 기존 유효한 로컬 수집 동의까지 철회하는 것은 아니다.
+
+동의·Repository·Project·Job 저장은 원자적이며 혼합 요청 실패 시 Public 항목도 부분 저장하지 않는다. USER → PROJECT 잠금으로 동시 철회와 직렬화한다. P-01/P-07의 Idempotency-Key는 사용자·경로·본문에 결합하며 다른 본문 재사용은 `409`. 기존 응답 재생도 현재 Private 접근을 재검사·가림 처리하고 철회 장벽을 복구하지 않는다. P-05 Job 멱등성은 향후 설계다. Public만 사용하는 등록·추가는 Private 동의나 App 연결을 요구하지 않는다. 외부 AI 제공자·보관기간은 미확정이고 실제 분석·면접 처리는 미구현이다.
+
+P-01의 혼합 요청 예시(P-07은 `name` 없이 같은 `repositories` 배열 사용; 동의 버전 값은 예시이며 운영 버전 확정값이 아님):
 
 ```json
 {
@@ -304,6 +367,8 @@ P-01/P-07의 혼합 요청 예시(동의 버전 값은 예시이며 운영 버�
 
 ### 10.3 X-01 확장·민감 데이터 철회
 
+**향후 설계(미구현):** 아래 통합 Snapshot·Interview 민감 읽기/쓰기·X-05 삭제 계약은 현재 P-08/P-12/P-13 응답으로 완료를 보장하지 않는다.
+
 `X-01`은 Project가 **현재 사용 가능한 통합** `AnalysisSnapshot`을 검증한 뒤 `snapshotId`, 구성 버전, `members:[{repositoryId,githubRepositoryId,commitSha}]`, 활성 분야, Repository ID·SHA·경로가 붙은 최소 근거와 양측 근거가 있는 관계를 반환한다. Interview는 서비스 자격과 원 사용자 JWT를 함께 전달하고 Project는 소유권·사용자/Project 장벽·모든 Private 접근 권한·수집 동의를 재검사한다. 선택 query `evidenceScope=PUBLIC_ONLY/FULL`의 **기본값은 `PUBLIC_ONLY`**다. `FULL`은 Private 외부 AI 동의까지 확인하고, `PUBLIC_ONLY`는 Private에서 유래한 멤버·역할·요약·근거·관계·분야를 **서버에서 완전히 제외**한다. 일부 Repository 분석 실패 시 새 READY는 없고, 이전 Snapshot은 그 구성·권한·수집 동의가 유효할 때만 사용한다. Private 외부 AI 동의가 없으면 Private 기반 AI 면접을 비활성화하되 Public 전용 면접은 `PUBLIC_ONLY`로 허용한다.
 
 Private 근거를 가진 진행·과거 면접의 **민감 읽기·쓰기 직전**에도 Interview는 X-01의 선택 query `snapshotId`에 세션의 고정 ID를 지정해 접근 유효성을 확인한다. 이 경우 최신 Snapshot으로 자동 대체하지 않는다. Project/Auth/GitHub 확인 장애나 철회 상태이면 fail closed한다. X-05는 Interview 로컬 차단을 빠르게 전파·정리하지만 전달 지연만으로 접근 허용을 결정하지 않는다. 매 요청 재검사의 지연·호출량은 구현 시 제한하고 민감 데이터의 무효 권한 캐시를 허용하지 않는다. Public 전용 면접은 기존 고정 Snapshot 경로를 유지한다.
@@ -312,10 +377,10 @@ Private 근거를 가진 진행·과거 면접의 **민감 읽기·쓰기 직전
 |---|---|---|
 | X-05 | Project → Interview `POST /internal/projects/{projectId}/snapshot-revocations` | `{revocationId,affectedSnapshotIds,reasonCode}`. 인증된 Project 서비스만 호출. Interview는 대상 Snapshot의 신규·진행·과거 세션 민감 읽기/쓰기를 차단하고 해당 Snapshot에서 파생된 면접 질문·답변·평가·캐시를 안전하게 삭제한다(BR-32). `202`는 차단 완료·삭제 진행, `204`는 삭제 완료, `5xx`는 재시도. 같은 `revocationId`는 멱등이며 타 사용자·다른 Snapshot은 삭제하지 않는다. 백업 삭제 기한은 `[결정 필요]`. |
 
-GitHub Webhook은 사용자 API 번호에 포함하지 않는다. Project의 별도 수신 경로에서 `X-Hub-Signature-256` HMAC을 검증하고 delivery ID 중복을 제거하며 설치 제거·Repository 접근 변경을 차단 이벤트로 처리한다. Webhook 지연·실패에 대비해 GitHub 호출 직전 권한 재검사도 수행한다. Auth의 X-03/X-04와 Project 삭제 X-02는 기존 소유권과 완료 확인 계약을 유지한다.
+**현재 구현된 Webhook:** 사용자 API 번호에 포함하지 않는다. Project의 별도 수신 경로에서 `X-Hub-Signature-256` HMAC을 검증하고 delivery ID 중복을 제거하며 설치 제거·Repository 접근 변경을 차단 이벤트로 처리한다. Webhook 지연·실패에 대비해 GitHub 호출 직전 권한 재검사도 수행한다. Auth의 X-03/X-04와 Project 삭제 X-02는 기존 소유권과 완료 확인 계약을 유지한다.
 
 ### 10.4 오류·상태·미결정
 
-오류 본문은 `{code,message,requestId}`의 안전한 형태로 통일하고 JWT, GitHub token, 서비스 키, GitHub/AI 원문 및 Private 코드·경로를 넣지 않는다. `400` 입력/동의 버전 오류, `401` 로그인·세션 실패, `403` 본인에게 허용되지 않은 GitHub 접근/동의 부족, `404` 타인 소유 Project/연결, `409` 중복·구성 버전·진행 Job 충돌, `429` GitHub 한도, `503` Auth/GitHub 장애로 구분한다. 외부 장애 시 보호 API는 fail closed다. `accessStatus=REVOKED` 또는 `CONSENT_REVOKED`이면 `analysisStatus`가 과거 READY여도 면접 불가다.
+현재 Backend `ApiErrors`와 Web BFF의 오류 본문은 `{code}`다. `message/requestId`는 현재 필수 응답 필드가 아니다. 오류에는 JWT, GitHub token, 서비스 키, GitHub/AI 원문 및 Private 코드·경로를 넣지 않는다. `400` 입력/동의 버전 오류, `401` 로그인·세션 실패, `403` 본인에게 허용되지 않은 GitHub 접근/동의 부족, `404` 타인 소유 Project/연결, `409` 중복·구성 버전·진행 Job 충돌, `503 github_rate_limited` GitHub 한도(외부 한도 응답도 안전한 오류로 변환), `503` Auth/GitHub 장애로 구분한다. 외부 장애 시 보호 API는 fail closed다. 현재 Private 접근 상태는 `accessStatus=BLOCKED`로 반환하며 해당 항목의 `githubRepositoryId/fullName/commitSha`는 `null`로 가린다. 동의의 `REVOKED`와 접근 상태 `BLOCKED`를 혼동하지 않는다. 현재 `latestReadySnapshot=null`, `canInterview=false`, `canPrivateInterview=false`이며 분석/면접 가능 상태로 표시하지 않는다. P-01/P-07/P-12의 철회 충돌은 `409 revocation_in_progress / revocation_required`로 구분한다.
 
-`[결정 필요]` GitHub App callback/BFF 배포 주소, AI 제공자·원본/파생 데이터 보관기간, 백업 삭제 기한, Secret/KMS 운영값, 삭제 완료 SLA, 멱등 키 보관기간. BR-31~36의 보안·삭제·중복 원칙은 확정됐으며 운영값이 미정이라는 이유로 적용을 미루지 않는다.
+`[결정 필요]` GitHub App callback/setup/BFF Production 배포 호스트·설정 검증, AI 제공자·원본/파생 데이터 보관기간, 백업 삭제 기한, Secret/KMS 운영값, 삭제 완료 SLA, 멱등 키 보관기간. BR-31~36의 보안·삭제·중복 원칙은 확정됐으며 운영값이 미정이라는 이유로 적용을 미루지 않는다.
